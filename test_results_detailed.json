@@ -1,0 +1,65 @@
+[
+  {
+    "test": "API Root",
+    "success": true,
+    "message": "API is accessible: API de Cotizaci\u00f3n de Persianas Enrollables",
+    "details": null,
+    "timestamp": "2026-02-22T15:32:39.309809"
+  },
+  {
+    "test": "POST /api/products/seed",
+    "success": true,
+    "message": "Ya existen 5 productos en la base de datos",
+    "details": null,
+    "timestamp": "2026-02-22T15:32:40.279112"
+  },
+  {
+    "test": "GET /api/products",
+    "success": true,
+    "message": "Retrieved 5 products with correct structure",
+    "details": null,
+    "timestamp": "2026-02-22T15:32:41.140513"
+  },
+  {
+    "test": "POST /api/products",
+    "success": true,
+    "message": "Created product with ID: 699b219931bc67a54e76a707",
+    "details": null,
+    "timestamp": "2026-02-22T15:32:42.005036"
+  },
+  {
+    "test": "PUT /api/products/{id}",
+    "success": true,
+    "message": "Updated product 699b219931bc67a54e76a707",
+    "details": null,
+    "timestamp": "2026-02-22T15:32:42.856676"
+  },
+  {
+    "test": "POST /api/quotes",
+    "success": true,
+    "message": "Created quote with correct M\u00b2 calculations. Total: $4036.50",
+    "details": null,
+    "timestamp": "2026-02-22T15:32:44.083278"
+  },
+  {
+    "test": "GET /api/quotes",
+    "success": true,
+    "message": "Retrieved 3 quotes with correct structure",
+    "details": null,
+    "timestamp": "2026-02-22T15:32:44.948898"
+  },
+  {
+    "test": "GET /api/quotes/{id}/pdf",
+    "success": true,
+    "message": "Generated PDF: cotizacion_699b219b.pdf",
+    "details": null,
+    "timestamp": "2026-02-22T15:32:45.807668"
+  },
+  {
+    "test": "DELETE /api/products/{id}",
+    "success": true,
+    "message": "Deleted product 699b219931bc67a54e76a707",
+    "details": null,
+    "timestamp": "2026-02-22T15:32:46.670746"
+  }
+]
