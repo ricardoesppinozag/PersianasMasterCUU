@@ -109,10 +109,10 @@ class QuoteItemResponse(BaseModel):
     square_meters: float
     unit_price: float
     subtotal: float
-    chain_orientation: str
-    fascia_type: str
-    fascia_color: str
-    fascia_price: float
+    chain_orientation: str = "Derecha"
+    fascia_type: str = "Redonda"
+    fascia_color: str = "Blanca"
+    fascia_price: float = 0.0
 
 class QuoteCreate(BaseModel):
     items: List[QuoteItemCreate]
