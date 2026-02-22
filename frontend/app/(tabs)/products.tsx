@@ -233,7 +233,11 @@ export default function ProductsScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3498db" />
         }
       >
-        {products.map((product) => (
+        {products.map((product) => {
+          const margin = product.distributor_price > 0 
+            ? ((product.client_price - product.distributor_price) / product.distributor_price * 100).toFixed(0)
+            : '0';
+          return (
           <View key={product.id} style={styles.productCard}>
             <View style={styles.productInfo}>
               <Text style={styles.productName}>{product.name}</Text>
@@ -246,6 +250,10 @@ export default function ProductsScreen() {
                 <View style={styles.priceBox}>
                   <Text style={styles.priceLabel}>Cliente</Text>
                   <Text style={styles.priceValueClient}>${product.client_price.toFixed(2)}/m²</Text>
+                </View>
+                <View style={styles.marginBox}>
+                  <Text style={styles.priceLabel}>Margen</Text>
+                  <Text style={styles.marginValue}>+{margin}%</Text>
                 </View>
               </View>
             </View>
@@ -264,7 +272,8 @@ export default function ProductsScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        ))}
+          );
+        })}
         
         <View style={styles.bottomPadding} />
       </ScrollView>
