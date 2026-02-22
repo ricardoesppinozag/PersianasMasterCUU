@@ -569,7 +569,82 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   priceInputContainer: {
+    flex: 2,
+  },
+  marginInputContainer: {
     flex: 1,
+  },
+  distributorInput: {
+    borderWidth: 1,
+    borderColor: '#3498db',
+  },
+  marginInput: {
+    borderWidth: 1,
+    borderColor: '#f39c12',
+    textAlign: 'center',
+  },
+  clientPriceContainer: {
+    marginTop: 4,
+  },
+  clientInput: {
+    borderWidth: 1,
+    borderColor: '#2ecc71',
+  },
+  helperText: {
+    fontSize: 11,
+    color: '#7f8c8d',
+    marginTop: -10,
+    marginBottom: 16,
+    fontStyle: 'italic',
+  },
+  pricesSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#0f3460',
+  },
+  pricesSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  pricePreview: {
+    backgroundColor: '#0f3460',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  pricePreviewTitle: {
+    fontSize: 13,
+    color: '#7f8c8d',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  pricePreviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+  },
+  pricePreviewBox: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  pricePreviewLabel: {
+    fontSize: 12,
+    color: '#7f8c8d',
+  },
+  pricePreviewValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#3498db',
+  },
+  pricePreviewValueClient: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#2ecc71',
   },
   saveButton: {
     flexDirection: 'row',
