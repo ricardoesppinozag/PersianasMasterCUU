@@ -341,7 +341,9 @@ async def create_quote(quote: QuoteCreate):
     
     for item in quote.items:
         square_meters = round(item.width * item.height, 2)
-        subtotal = round(square_meters * item.unit_price, 2)
+        product_subtotal = round(square_meters * item.unit_price, 2)
+        fascia_cost = round(item.fascia_price, 2) if item.fascia_price else 0.0
+        subtotal = product_subtotal + fascia_cost
         total += subtotal
         
         items_with_calculations.append({
@@ -354,7 +356,9 @@ async def create_quote(quote: QuoteCreate):
             "unit_price": item.unit_price,
             "subtotal": subtotal,
             "chain_orientation": item.chain_orientation,
-            "fascia_type": item.fascia_type
+            "fascia_type": item.fascia_type,
+            "fascia_color": item.fascia_color,
+            "fascia_price": fascia_cost
         })
     
     quote_dict = {
