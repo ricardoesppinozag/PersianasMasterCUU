@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Response
+from fastapi import FastAPI, APIRouter, HTTPException, Response, UploadFile, File
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -15,7 +15,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as RLImage
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
 import base64
 
@@ -43,11 +43,17 @@ def serialize_doc(doc):
 
 # ============== MODELS ==============
 
+# Color/Model variant for products
+class ProductColor(BaseModel):
+    name: str
+    code: Optional[str] = None  # Optional color code like #FFFFFF
+
 class ProductBase(BaseModel):
     name: str
     description: str
     distributor_price: float  # Price per m² for distributor
     client_price: float  # Price per m² for client
+    colors: List[ProductColor] = []  # Available colors/models
 
 class ProductCreate(ProductBase):
     pass
@@ -57,26 +63,52 @@ class ProductUpdate(BaseModel):
     description: Optional[str] = None
     distributor_price: Optional[float] = None
     client_price: Optional[float] = None
+    colors: Optional[List[ProductColor]] = None
 
 class Product(ProductBase):
     id: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
+# Business Configuration
+class BusinessConfigBase(BaseModel):
+    business_name: str = "Persianas Premium"
+    phone: str = "+52 555 123 4567"
+    email: str = "contacto@persianaspremium.mx"
+    address: str = "Av. Reforma 123, Col. Centro, CDMX"
+    logo_base64: Optional[str] = None
+
+class BusinessConfigUpdate(BaseModel):
+    business_name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+    logo_base64: Optional[str] = None
+
+class BusinessConfig(BusinessConfigBase):
+    id: str
+
+# Quote Item with additional options
 class QuoteItemCreate(BaseModel):
     product_id: str
     product_name: str
+    color: Optional[str] = None  # Selected color
     width: float  # in meters
     height: float  # in meters
     unit_price: float  # price per m²
+    chain_orientation: str = "Derecha"  # Izquierda or Derecha
+    fascia_type: str = "Redonda"  # Redonda, Cuadrada sin forrar, Cuadrada forrada
 
 class QuoteItemResponse(BaseModel):
     product_id: str
     product_name: str
+    color: Optional[str] = None
     width: float
     height: float
     square_meters: float
     unit_price: float
     subtotal: float
+    chain_orientation: str
+    fascia_type: str
 
 class QuoteCreate(BaseModel):
     items: List[QuoteItemCreate]
@@ -97,18 +129,61 @@ class Quote(BaseModel):
     notes: Optional[str] = None
     created_at: datetime
 
-class CompanyInfo(BaseModel):
-    name: str = "Persianas Premium"
-    phone: str = "+52 555 123 4567"
-    email: str = "contacto@persianaspremium.mx"
-    address: str = "Av. Reforma 123, Col. Centro, CDMX"
-    logo_base64: Optional[str] = None
-
 # ============== ROUTES ==============
 
 @api_router.get("/")
 async def root():
     return {"message": "API de Cotización de Persianas Enrollables"}
+
+# ---------- BUSINESS CONFIG ----------
+
+@api_router.get("/config", response_model=BusinessConfig)
+async def get_business_config():
+    config = await db.business_config.find_one()
+    if not config:
+        # Create default config
+        default_config = {
+            "business_name": "Persianas Premium",
+            "phone": "+52 555 123 4567",
+            "email": "contacto@persianaspremium.mx",
+            "address": "Av. Reforma 123, Col. Centro, CDMX",
+            "logo_base64": None
+        }
+        result = await db.business_config.insert_one(default_config)
+        default_config['id'] = str(result.inserted_id)
+        return BusinessConfig(**default_config)
+    
+    return BusinessConfig(**serialize_doc(config))
+
+@api_router.put("/config", response_model=BusinessConfig)
+async def update_business_config(config: BusinessConfigUpdate):
+    existing = await db.business_config.find_one()
+    
+    if not existing:
+        # Create new config
+        config_dict = config.dict(exclude_none=True)
+        if not config_dict:
+            config_dict = {
+                "business_name": "Persianas Premium",
+                "phone": "+52 555 123 4567",
+                "email": "contacto@persianaspremium.mx",
+                "address": "Av. Reforma 123, Col. Centro, CDMX",
+                "logo_base64": None
+            }
+        result = await db.business_config.insert_one(config_dict)
+        config_dict['id'] = str(result.inserted_id)
+        return BusinessConfig(**config_dict)
+    
+    update_data = {k: v for k, v in config.dict().items() if v is not None}
+    
+    if update_data:
+        await db.business_config.update_one(
+            {"_id": existing["_id"]},
+            {"$set": update_data}
+        )
+    
+    updated = await db.business_config.find_one({"_id": existing["_id"]})
+    return BusinessConfig(**serialize_doc(updated))
 
 # ---------- PRODUCTS ----------
 
@@ -187,6 +262,13 @@ async def seed_products():
             "description": "Bloqueo total de luz, ideal para recámaras. Tela de alta densidad con respaldo térmico.",
             "distributor_price": 450.0,
             "client_price": 585.0,
+            "colors": [
+                {"name": "Blanco", "code": "#FFFFFF"},
+                {"name": "Beige", "code": "#F5F5DC"},
+                {"name": "Gris", "code": "#808080"},
+                {"name": "Negro", "code": "#000000"},
+                {"name": "Azul Marino", "code": "#000080"}
+            ],
             "created_at": datetime.utcnow()
         },
         {
@@ -194,6 +276,12 @@ async def seed_products():
             "description": "Permite el paso de luz difusa, perfecta para salas y comedores. Disponible en múltiples colores.",
             "distributor_price": 350.0,
             "client_price": 455.0,
+            "colors": [
+                {"name": "Blanco", "code": "#FFFFFF"},
+                {"name": "Crema", "code": "#FFFDD0"},
+                {"name": "Arena", "code": "#C2B280"},
+                {"name": "Gris Claro", "code": "#D3D3D3"}
+            ],
             "created_at": datetime.utcnow()
         },
         {
@@ -201,6 +289,12 @@ async def seed_products():
             "description": "Visibilidad hacia el exterior con protección solar. Reduce el calor y rayos UV.",
             "distributor_price": 520.0,
             "client_price": 676.0,
+            "colors": [
+                {"name": "Blanco/Gris", "code": "#E8E8E8"},
+                {"name": "Gris/Negro", "code": "#4A4A4A"},
+                {"name": "Beige/Bronce", "code": "#C4A484"},
+                {"name": "Charcoal", "code": "#36454F"}
+            ],
             "created_at": datetime.utcnow()
         },
         {
@@ -208,6 +302,12 @@ async def seed_products():
             "description": "Sistema dual con franjas alternas para control preciso de luz y privacidad.",
             "distributor_price": 480.0,
             "client_price": 624.0,
+            "colors": [
+                {"name": "Blanco", "code": "#FFFFFF"},
+                {"name": "Marfil", "code": "#FFFFF0"},
+                {"name": "Gris", "code": "#808080"},
+                {"name": "Chocolate", "code": "#7B3F00"}
+            ],
             "created_at": datetime.utcnow()
         },
         {
@@ -215,12 +315,18 @@ async def seed_products():
             "description": "Diseños exclusivos con texturas y patrones. Acabado de lujo para espacios elegantes.",
             "distributor_price": 400.0,
             "client_price": 520.0,
+            "colors": [
+                {"name": "Lino Natural", "code": "#FAF0E6"},
+                {"name": "Textura Gris", "code": "#A9A9A9"},
+                {"name": "Damasco", "code": "#FFCBA4"},
+                {"name": "Perla", "code": "#EAE0C8"}
+            ],
             "created_at": datetime.utcnow()
         }
     ]
     
     result = await db.products.insert_many(sample_products)
-    return {"message": f"Se crearon {len(result.inserted_ids)} productos de ejemplo"}
+    return {"message": f"Se crearon {len(result.inserted_ids)} productos de ejemplo con colores"}
 
 # ---------- QUOTES ----------
 
@@ -237,11 +343,14 @@ async def create_quote(quote: QuoteCreate):
         items_with_calculations.append({
             "product_id": item.product_id,
             "product_name": item.product_name,
+            "color": item.color,
             "width": item.width,
             "height": item.height,
             "square_meters": square_meters,
             "unit_price": item.unit_price,
-            "subtotal": subtotal
+            "subtotal": subtotal,
+            "chain_orientation": item.chain_orientation,
+            "fascia_type": item.fascia_type
         })
     
     quote_dict = {
@@ -303,6 +412,17 @@ async def generate_quote_pdf(quote_id: str):
     
     quote_data = serialize_doc(quote)
     
+    # Get business config
+    config = await db.business_config.find_one()
+    if not config:
+        config = {
+            "business_name": "Persianas Premium",
+            "phone": "+52 555 123 4567",
+            "email": "contacto@persianaspremium.mx",
+            "address": "Av. Reforma 123, Col. Centro, CDMX",
+            "logo_base64": None
+        }
+    
     # Create PDF in memory
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch)
@@ -338,14 +458,15 @@ async def generate_quote_pdf(quote_id: str):
     
     elements = []
     
-    # Company Header
-    elements.append(Paragraph("PERSIANAS PREMIUM", title_style))
+    # Company Header with custom name
+    business_name = config.get('business_name', 'Persianas Premium')
+    elements.append(Paragraph(business_name.upper(), title_style))
     elements.append(Paragraph("Cotización de Persianas Enrollables", subtitle_style))
     
     # Company info
-    company_info = """
-    <b>Teléfono:</b> +52 555 123 4567 | <b>Email:</b> contacto@persianaspremium.mx<br/>
-    <b>Dirección:</b> Av. Reforma 123, Col. Centro, CDMX
+    company_info = f"""
+    <b>Teléfono:</b> {config.get('phone', '+52 555 123 4567')} | <b>Email:</b> {config.get('email', 'contacto@persianaspremium.mx')}<br/>
+    <b>Dirección:</b> {config.get('address', 'Av. Reforma 123, Col. Centro, CDMX')}
     """
     elements.append(Paragraph(company_info, info_style))
     elements.append(Spacer(1, 20))
@@ -373,44 +494,53 @@ async def generate_quote_pdf(quote_id: str):
     elements.append(Paragraph(quote_info, info_style))
     elements.append(Spacer(1, 20))
     
-    # Items Table
+    # Items Table with new columns
     table_data = [
-        ['#', 'Producto', 'Ancho (m)', 'Alto (m)', 'M²', 'Precio/M²', 'Subtotal']
+        ['#', 'Producto', 'Color', 'Medidas', 'M²', 'Cadena', 'Fascia', 'Subtotal']
     ]
     
     for idx, item in enumerate(quote_data['items'], 1):
+        color = item.get('color', '-')
+        chain = item.get('chain_orientation', 'Der.')[:3] + '.'
+        fascia = item.get('fascia_type', 'Redonda')
+        if fascia == "Cuadrada sin forrar":
+            fascia = "Cuad. s/f"
+        elif fascia == "Cuadrada forrada":
+            fascia = "Cuad. forr."
+        
         table_data.append([
             str(idx),
-            item['product_name'][:30],
-            f"{item['width']:.2f}",
-            f"{item['height']:.2f}",
+            item['product_name'][:20],
+            color[:15] if color else '-',
+            f"{item['width']:.2f}x{item['height']:.2f}",
             f"{item['square_meters']:.2f}",
-            f"${item['unit_price']:,.2f}",
+            chain,
+            fascia,
             f"${item['subtotal']:,.2f}"
         ])
     
     # Add total row
-    table_data.append(['', '', '', '', '', 'TOTAL:', f"${quote_data['total']:,.2f}"])
+    table_data.append(['', '', '', '', '', '', 'TOTAL:', f"${quote_data['total']:,.2f}"])
     
-    table = Table(table_data, colWidths=[0.4*inch, 2.2*inch, 0.8*inch, 0.8*inch, 0.6*inch, 0.9*inch, 1*inch])
+    table = Table(table_data, colWidths=[0.3*inch, 1.4*inch, 0.9*inch, 0.8*inch, 0.5*inch, 0.5*inch, 0.7*inch, 0.8*inch])
     table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498DB')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('FONTSIZE', (0, 0), (-1, 0), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
         ('BACKGROUND', (0, 1), (-1, -2), colors.HexColor('#ECF0F1')),
         ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor('#2C3E50')),
         ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 1), (-1, -1), 9),
+        ('FONTSIZE', (0, 1), (-1, -1), 8),
         ('ALIGN', (0, 0), (0, -1), 'CENTER'),
         ('ALIGN', (1, 1), (1, -1), 'LEFT'),
         ('GRID', (0, 0), (-1, -2), 1, colors.HexColor('#BDC3C7')),
         ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#2C3E50')),
         ('TEXTCOLOR', (0, -1), (-1, -1), colors.whitesmoke),
         ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, -1), (-1, -1), 11),
+        ('FONTSIZE', (0, -1), (-1, -1), 10),
         ('TOPPADDING', (0, -1), (-1, -1), 10),
         ('BOTTOMPADDING', (0, -1), (-1, -1), 10),
     ]))
