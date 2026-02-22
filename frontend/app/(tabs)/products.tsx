@@ -496,6 +496,19 @@ const styles = StyleSheet.create({
     color: '#2ecc71',
     marginTop: 2,
   },
+  marginBox: {
+    backgroundColor: '#f39c12',
+    borderRadius: 8,
+    padding: 10,
+    minWidth: 70,
+    alignItems: 'center',
+  },
+  marginValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
+    marginTop: 2,
+  },
   productActions: {
     justifyContent: 'center',
     gap: 12,
