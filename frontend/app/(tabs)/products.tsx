@@ -79,6 +79,7 @@ export default function ProductsScreen() {
     setDescription('');
     setDistributorPrice('');
     setClientPrice('');
+    setMarginPercent('30');
     setShowModal(true);
   };
 
@@ -88,7 +89,33 @@ export default function ProductsScreen() {
     setDescription(product.description);
     setDistributorPrice(product.distributor_price.toString());
     setClientPrice(product.client_price.toString());
+    // Calculate current margin
+    if (product.distributor_price > 0) {
+      const margin = ((product.client_price - product.distributor_price) / product.distributor_price) * 100;
+      setMarginPercent(margin.toFixed(0));
+    }
     setShowModal(true);
+  };
+
+  // Auto-calculate client price when distributor price or margin changes
+  const handleDistributorPriceChange = (value: string) => {
+    setDistributorPrice(value);
+    const distPrice = parseFloat(value);
+    const margin = parseFloat(marginPercent);
+    if (!isNaN(distPrice) && !isNaN(margin) && distPrice > 0) {
+      const calculatedClientPrice = distPrice * (1 + margin / 100);
+      setClientPrice(calculatedClientPrice.toFixed(2));
+    }
+  };
+
+  const handleMarginChange = (value: string) => {
+    setMarginPercent(value);
+    const distPrice = parseFloat(distributorPrice);
+    const margin = parseFloat(value);
+    if (!isNaN(distPrice) && !isNaN(margin) && distPrice > 0) {
+      const calculatedClientPrice = distPrice * (1 + margin / 100);
+      setClientPrice(calculatedClientPrice.toFixed(2));
+    }
   };
 
   const closeModal = () => {
