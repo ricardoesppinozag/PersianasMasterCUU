@@ -12,6 +12,7 @@ import {
   Platform,
   Modal,
   RefreshControl,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,23 +21,40 @@ import * as Sharing from 'expo-sharing';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
+interface ProductColor {
+  name: string;
+  code?: string;
+}
+
 interface Product {
   id: string;
   name: string;
   description: string;
   distributor_price: number;
   client_price: number;
+  colors: ProductColor[];
 }
 
 interface QuoteItem {
   product_id: string;
   product_name: string;
+  color: string | null;
   width: number;
   height: number;
   square_meters: number;
   unit_price: number;
   subtotal: number;
+  chain_orientation: string;
+  fascia_type: string;
 }
+
+interface BusinessConfig {
+  business_name: string;
+  logo_base64: string | null;
+}
+
+const CHAIN_OPTIONS = ['Izquierda', 'Derecha'];
+const FASCIA_OPTIONS = ['Redonda', 'Cuadrada sin forrar', 'Cuadrada forrada'];
 
 export default function QuoteScreen() {
   const [isDistributor, setIsDistributor] = useState(true);
@@ -45,12 +63,19 @@ export default function QuoteScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [savingQuote, setSavingQuote] = useState(false);
+  const [businessConfig, setBusinessConfig] = useState<BusinessConfig | null>(null);
   
   // Form state
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [width, setWidth] = useState('');
   const [height, setHeight] = useState('');
+  const [chainOrientation, setChainOrientation] = useState('Derecha');
+  const [fasciaType, setFasciaType] = useState('Redonda');
   const [showProductPicker, setShowProductPicker] = useState(false);
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showChainPicker, setShowChainPicker] = useState(false);
+  const [showFasciaPicker, setShowFasciaPicker] = useState(false);
   
   // Client info
   const [clientName, setClientName] = useState('');
@@ -58,24 +83,31 @@ export default function QuoteScreen() {
   const [clientEmail, setClientEmail] = useState('');
   const [notes, setNotes] = useState('');
 
-  const fetchProducts = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     try {
-      const response = await fetch(`${BACKEND_URL}/api/products`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.length === 0) {
-          // Seed products if none exist
+      // Fetch products
+      const productsResponse = await fetch(`${BACKEND_URL}/api/products`);
+      if (productsResponse.ok) {
+        const productsData = await productsResponse.json();
+        if (productsData.length === 0) {
           await fetch(`${BACKEND_URL}/api/products/seed`, { method: 'POST' });
           const newResponse = await fetch(`${BACKEND_URL}/api/products`);
           const newData = await newResponse.json();
           setProducts(newData);
         } else {
-          setProducts(data);
+          setProducts(productsData);
         }
       }
+      
+      // Fetch business config
+      const configResponse = await fetch(`${BACKEND_URL}/api/config`);
+      if (configResponse.ok) {
+        const configData = await configResponse.json();
+        setBusinessConfig(configData);
+      }
     } catch (error) {
-      console.error('Error fetching products:', error);
-      Alert.alert('Error', 'No se pudieron cargar los productos');
+      console.error('Error fetching data:', error);
+      Alert.alert('Error', 'No se pudieron cargar los datos');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -83,13 +115,13 @@ export default function QuoteScreen() {
   }, []);
 
   useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+    fetchData();
+  }, [fetchData]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    fetchProducts();
-  }, [fetchProducts]);
+    fetchData();
+  }, [fetchData]);
 
   const getPrice = (product: Product) => {
     return isDistributor ? product.distributor_price : product.client_price;
@@ -122,17 +154,23 @@ export default function QuoteScreen() {
     const newItem: QuoteItem = {
       product_id: selectedProduct.id,
       product_name: selectedProduct.name,
+      color: selectedColor,
       width: w,
       height: h,
       square_meters: sqm,
       unit_price: unitPrice,
       subtotal: subtotal,
+      chain_orientation: chainOrientation,
+      fascia_type: fasciaType,
     };
     
     setQuoteItems([...quoteItems, newItem]);
     setSelectedProduct(null);
+    setSelectedColor(null);
     setWidth('');
     setHeight('');
+    setChainOrientation('Derecha');
+    setFasciaType('Redonda');
   };
 
   const removeItem = (index: number) => {
@@ -175,14 +213,16 @@ export default function QuoteScreen() {
     setSavingQuote(true);
     
     try {
-      // Save quote to backend
       const quoteData = {
         items: quoteItems.map(item => ({
           product_id: item.product_id,
           product_name: item.product_name,
+          color: item.color,
           width: item.width,
           height: item.height,
           unit_price: item.unit_price,
+          chain_orientation: item.chain_orientation,
+          fascia_type: item.fascia_type,
         })),
         client_type: isDistributor ? 'distributor' : 'client',
         client_name: clientName || null,
@@ -203,7 +243,6 @@ export default function QuoteScreen() {
       
       const savedQuote = await response.json();
       
-      // Generate PDF
       const pdfResponse = await fetch(`${BACKEND_URL}/api/quotes/${savedQuote.id}/pdf`);
       
       if (!pdfResponse.ok) {
@@ -212,7 +251,6 @@ export default function QuoteScreen() {
       
       const pdfData = await pdfResponse.json();
       
-      // Save and share PDF
       const fileUri = FileSystem.documentDirectory + pdfData.filename;
       await FileSystem.writeAsStringAsync(fileUri, pdfData.pdf_base64, {
         encoding: FileSystem.EncodingType.Base64,
@@ -224,7 +262,6 @@ export default function QuoteScreen() {
         Alert.alert('Éxito', 'Cotización guardada. El PDF se generó correctamente.');
       }
       
-      // Clear the form after successful save
       setQuoteItems([]);
       setClientName('');
       setClientPhone('');
@@ -244,7 +281,7 @@ export default function QuoteScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#3498db" />
-          <Text style={styles.loadingText}>Cargando productos...</Text>
+          <Text style={styles.loadingText}>Cargando...</Text>
         </View>
       </SafeAreaView>
     );
@@ -262,10 +299,15 @@ export default function QuoteScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3498db" />
           }
         >
-          {/* Header */}
+          {/* Header with Business Name */}
           <View style={styles.header}>
+            {businessConfig?.logo_base64 && (
+              <Image source={{ uri: businessConfig.logo_base64 }} style={styles.headerLogo} />
+            )}
             <Text style={styles.title}>Nueva Cotización</Text>
-            <Text style={styles.subtitle}>Persianas Enrollables</Text>
+            <Text style={styles.subtitle}>
+              {businessConfig?.business_name || 'Persianas Enrollables'}
+            </Text>
           </View>
 
           {/* Toggle Distributor/Client */}
@@ -302,15 +344,42 @@ export default function QuoteScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Agregar Producto</Text>
             
+            {/* Product Picker */}
             <TouchableOpacity
-              style={styles.productPicker}
+              style={styles.picker}
               onPress={() => setShowProductPicker(true)}
             >
-              <Text style={selectedProduct ? styles.productPickerText : styles.productPickerPlaceholder}>
+              <Text style={selectedProduct ? styles.pickerText : styles.pickerPlaceholder}>
                 {selectedProduct ? selectedProduct.name : 'Seleccionar producto...'}
               </Text>
               <Ionicons name="chevron-down" size={20} color="#7f8c8d" />
             </TouchableOpacity>
+
+            {/* Color Picker - Only show if product has colors */}
+            {selectedProduct && selectedProduct.colors && selectedProduct.colors.length > 0 && (
+              <>
+                <Text style={styles.inputLabel}>Color / Modelo</Text>
+                <TouchableOpacity
+                  style={styles.picker}
+                  onPress={() => setShowColorPicker(true)}
+                >
+                  <View style={styles.colorPickerContent}>
+                    {selectedColor && (
+                      <View 
+                        style={[
+                          styles.colorDot, 
+                          { backgroundColor: selectedProduct.colors.find(c => c.name === selectedColor)?.code || '#808080' }
+                        ]} 
+                      />
+                    )}
+                    <Text style={selectedColor ? styles.pickerText : styles.pickerPlaceholder}>
+                      {selectedColor || 'Seleccionar color...'}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-down" size={20} color="#7f8c8d" />
+                </TouchableOpacity>
+              </>
+            )}
 
             {selectedProduct && (
               <Text style={styles.priceInfo}>
@@ -350,6 +419,34 @@ export default function QuoteScreen() {
               <Text style={styles.calculatedValue}>{calculateSquareMeters().toFixed(2)} m²</Text>
             </View>
 
+            {/* Chain Orientation & Fascia Type */}
+            <View style={styles.optionsRow}>
+              <View style={styles.optionInput}>
+                <Text style={styles.inputLabel}>Cadena</Text>
+                <TouchableOpacity
+                  style={styles.optionPicker}
+                  onPress={() => setShowChainPicker(true)}
+                >
+                  <Ionicons 
+                    name={chainOrientation === 'Izquierda' ? 'arrow-back' : 'arrow-forward'} 
+                    size={16} 
+                    color="#3498db" 
+                  />
+                  <Text style={styles.optionText}>{chainOrientation}</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.optionInput}>
+                <Text style={styles.inputLabel}>Fascia</Text>
+                <TouchableOpacity
+                  style={styles.optionPicker}
+                  onPress={() => setShowFasciaPicker(true)}
+                >
+                  <Ionicons name="square-outline" size={16} color="#3498db" />
+                  <Text style={styles.optionText} numberOfLines={1}>{fasciaType}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
             {selectedProduct && width && height && (
               <View style={styles.calculatedRow}>
                 <Text style={styles.calculatedLabel}>Subtotal:</Text>
@@ -379,8 +476,14 @@ export default function QuoteScreen() {
                 <View key={index} style={styles.quoteItem}>
                   <View style={styles.quoteItemInfo}>
                     <Text style={styles.quoteItemName}>{item.product_name}</Text>
+                    {item.color && (
+                      <Text style={styles.quoteItemColor}>Color: {item.color}</Text>
+                    )}
                     <Text style={styles.quoteItemDetails}>
                       {item.width.toFixed(2)}m × {item.height.toFixed(2)}m = {item.square_meters.toFixed(2)} m²
+                    </Text>
+                    <Text style={styles.quoteItemOptions}>
+                      Cadena: {item.chain_orientation} | Fascia: {item.fascia_type}
                     </Text>
                     <Text style={styles.quoteItemPrice}>
                       ${item.unit_price.toFixed(2)}/m² → ${item.subtotal.toFixed(2)}
@@ -392,7 +495,6 @@ export default function QuoteScreen() {
                 </View>
               ))}
 
-              {/* Total */}
               <View style={styles.totalContainer}>
                 <Text style={styles.totalLabel}>TOTAL:</Text>
                 <Text style={styles.totalValue}>${getTotal().toFixed(2)}</Text>
@@ -400,7 +502,7 @@ export default function QuoteScreen() {
             </View>
           )}
 
-          {/* Client Info (Optional) */}
+          {/* Client Info */}
           {quoteItems.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Datos del Cliente (Opcional)</Text>
@@ -466,11 +568,7 @@ export default function QuoteScreen() {
         </ScrollView>
 
         {/* Product Picker Modal */}
-        <Modal
-          visible={showProductPicker}
-          transparent
-          animationType="slide"
-        >
+        <Modal visible={showProductPicker} transparent animationType="slide">
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
@@ -486,12 +584,26 @@ export default function QuoteScreen() {
                     style={styles.productOption}
                     onPress={() => {
                       setSelectedProduct(product);
+                      setSelectedColor(null);
                       setShowProductPicker(false);
                     }}
                   >
                     <View style={styles.productOptionInfo}>
                       <Text style={styles.productOptionName}>{product.name}</Text>
                       <Text style={styles.productOptionDesc}>{product.description}</Text>
+                      {product.colors && product.colors.length > 0 && (
+                        <View style={styles.colorDotsRow}>
+                          {product.colors.slice(0, 5).map((color, idx) => (
+                            <View 
+                              key={idx} 
+                              style={[styles.colorDotSmall, { backgroundColor: color.code || '#808080' }]} 
+                            />
+                          ))}
+                          {product.colors.length > 5 && (
+                            <Text style={styles.moreColors}>+{product.colors.length - 5}</Text>
+                          )}
+                        </View>
+                      )}
                     </View>
                     <View style={styles.productOptionPrice}>
                       <Text style={styles.priceLabel}>
@@ -504,6 +616,114 @@ export default function QuoteScreen() {
                   </TouchableOpacity>
                 ))}
               </ScrollView>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Color Picker Modal */}
+        <Modal visible={showColorPicker} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContentSmall}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Seleccionar Color</Text>
+                <TouchableOpacity onPress={() => setShowColorPicker(false)}>
+                  <Ionicons name="close" size={28} color="#fff" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView style={styles.modalScroll}>
+                {selectedProduct?.colors?.map((color, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={styles.colorOption}
+                    onPress={() => {
+                      setSelectedColor(color.name);
+                      setShowColorPicker(false);
+                    }}
+                  >
+                    <View style={[styles.colorDotLarge, { backgroundColor: color.code || '#808080' }]} />
+                    <Text style={styles.colorOptionText}>{color.name}</Text>
+                    {selectedColor === color.name && (
+                      <Ionicons name="checkmark-circle" size={24} color="#2ecc71" />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Chain Orientation Picker Modal */}
+        <Modal visible={showChainPicker} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContentSmall}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Orientación de Cadena</Text>
+                <TouchableOpacity onPress={() => setShowChainPicker(false)}>
+                  <Ionicons name="close" size={28} color="#fff" />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.optionsList}>
+                {CHAIN_OPTIONS.map((option) => (
+                  <TouchableOpacity
+                    key={option}
+                    style={[styles.optionItem, chainOrientation === option && styles.optionItemSelected]}
+                    onPress={() => {
+                      setChainOrientation(option);
+                      setShowChainPicker(false);
+                    }}
+                  >
+                    <Ionicons 
+                      name={option === 'Izquierda' ? 'arrow-back' : 'arrow-forward'} 
+                      size={24} 
+                      color={chainOrientation === option ? '#3498db' : '#7f8c8d'} 
+                    />
+                    <Text style={[styles.optionItemText, chainOrientation === option && styles.optionItemTextSelected]}>
+                      {option}
+                    </Text>
+                    {chainOrientation === option && (
+                      <Ionicons name="checkmark-circle" size={24} color="#2ecc71" />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Fascia Type Picker Modal */}
+        <Modal visible={showFasciaPicker} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContentSmall}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Tipo de Fascia</Text>
+                <TouchableOpacity onPress={() => setShowFasciaPicker(false)}>
+                  <Ionicons name="close" size={28} color="#fff" />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.optionsList}>
+                {FASCIA_OPTIONS.map((option) => (
+                  <TouchableOpacity
+                    key={option}
+                    style={[styles.optionItem, fasciaType === option && styles.optionItemSelected]}
+                    onPress={() => {
+                      setFasciaType(option);
+                      setShowFasciaPicker(false);
+                    }}
+                  >
+                    <Ionicons 
+                      name={option === 'Redonda' ? 'ellipse-outline' : 'square-outline'} 
+                      size={24} 
+                      color={fasciaType === option ? '#3498db' : '#7f8c8d'} 
+                    />
+                    <Text style={[styles.optionItemText, fasciaType === option && styles.optionItemTextSelected]}>
+                      {option}
+                    </Text>
+                    {fasciaType === option && (
+                      <Ionicons name="checkmark-circle" size={24} color="#2ecc71" />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
           </View>
         </Modal>
@@ -538,6 +758,12 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     alignItems: 'center',
   },
+  headerLogo: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginBottom: 10,
+  },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
@@ -545,8 +771,9 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 16,
-    color: '#7f8c8d',
+    color: '#3498db',
     marginTop: 4,
+    fontWeight: '600',
   },
   toggleContainer: {
     flexDirection: 'row',
@@ -594,7 +821,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     marginBottom: 12,
   },
-  productPicker: {
+  picker: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -603,13 +830,50 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 12,
   },
-  productPickerText: {
+  pickerText: {
     color: '#fff',
     fontSize: 15,
   },
-  productPickerPlaceholder: {
+  pickerPlaceholder: {
     color: '#7f8c8d',
     fontSize: 15,
+  },
+  colorPickerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  colorDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#fff',
+  },
+  colorDotSmall: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: '#fff',
+  },
+  colorDotLarge: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  colorDotsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 8,
+  },
+  moreColors: {
+    color: '#7f8c8d',
+    fontSize: 11,
+    marginLeft: 4,
   },
   priceInfo: {
     color: '#2ecc71',
@@ -618,17 +882,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '600',
   },
+  inputLabel: {
+    color: '#7f8c8d',
+    fontSize: 13,
+    marginBottom: 6,
+  },
   measurementsRow: {
     flexDirection: 'row',
     gap: 12,
   },
   measurementInput: {
     flex: 1,
-  },
-  inputLabel: {
-    color: '#7f8c8d',
-    fontSize: 13,
-    marginBottom: 6,
   },
   input: {
     backgroundColor: '#0f3460',
@@ -637,6 +901,27 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     textAlign: 'center',
+  },
+  optionsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 12,
+  },
+  optionInput: {
+    flex: 1,
+  },
+  optionPicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0f3460',
+    borderRadius: 10,
+    padding: 12,
+    gap: 6,
+  },
+  optionText: {
+    color: '#fff',
+    fontSize: 13,
   },
   calculatedRow: {
     flexDirection: 'row',
@@ -690,10 +975,20 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
+  quoteItemColor: {
+    color: '#3498db',
+    fontSize: 12,
+    marginTop: 2,
+  },
   quoteItemDetails: {
     color: '#7f8c8d',
     fontSize: 13,
     marginTop: 4,
+  },
+  quoteItemOptions: {
+    color: '#9b59b6',
+    fontSize: 11,
+    marginTop: 2,
   },
   quoteItemPrice: {
     color: '#2ecc71',
@@ -765,6 +1060,12 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     maxHeight: '80%',
   },
+  modalContentSmall: {
+    backgroundColor: '#16213e',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '50%',
+  },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -813,5 +1114,44 @@ const styles = StyleSheet.create({
     color: '#2ecc71',
     fontSize: 16,
     fontWeight: '700',
+  },
+  colorOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0f3460',
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 10,
+    gap: 12,
+  },
+  colorOptionText: {
+    color: '#fff',
+    fontSize: 16,
+    flex: 1,
+  },
+  optionsList: {
+    padding: 16,
+  },
+  optionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0f3460',
+    borderRadius: 10,
+    padding: 16,
+    marginBottom: 10,
+    gap: 12,
+  },
+  optionItemSelected: {
+    borderWidth: 2,
+    borderColor: '#3498db',
+  },
+  optionItemText: {
+    color: '#fff',
+    fontSize: 16,
+    flex: 1,
+  },
+  optionItemTextSelected: {
+    color: '#3498db',
+    fontWeight: '600',
   },
 });
