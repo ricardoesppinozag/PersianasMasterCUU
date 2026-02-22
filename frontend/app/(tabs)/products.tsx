@@ -311,30 +311,75 @@ export default function ProductsScreen() {
                 numberOfLines={3}
               />
 
+              {/* Prices Section Header */}
+              <View style={styles.pricesSectionHeader}>
+                <Ionicons name="pricetags" size={20} color="#3498db" />
+                <Text style={styles.pricesSectionTitle}>Configuración de Precios</Text>
+              </View>
+
               <View style={styles.pricesRow}>
                 <View style={styles.priceInputContainer}>
-                  <Text style={styles.inputLabel}>Precio Distribuidor ($/m²)</Text>
+                  <Text style={styles.inputLabel}>
+                    <Ionicons name="business-outline" size={12} color="#3498db" /> Precio Distribuidor ($/m²)
+                  </Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, styles.distributorInput]}
                     value={distributorPrice}
-                    onChangeText={setDistributorPrice}
+                    onChangeText={handleDistributorPriceChange}
                     placeholder="0.00"
                     placeholderTextColor="#7f8c8d"
                     keyboardType="decimal-pad"
                   />
                 </View>
-                <View style={styles.priceInputContainer}>
-                  <Text style={styles.inputLabel}>Precio Cliente ($/m²)</Text>
+                <View style={styles.marginInputContainer}>
+                  <Text style={styles.inputLabel}>Margen %</Text>
                   <TextInput
-                    style={styles.input}
-                    value={clientPrice}
-                    onChangeText={setClientPrice}
-                    placeholder="0.00"
+                    style={[styles.input, styles.marginInput]}
+                    value={marginPercent}
+                    onChangeText={handleMarginChange}
+                    placeholder="30"
                     placeholderTextColor="#7f8c8d"
                     keyboardType="decimal-pad"
                   />
                 </View>
               </View>
+
+              <View style={styles.clientPriceContainer}>
+                <Text style={styles.inputLabel}>
+                  <Ionicons name="person-outline" size={12} color="#2ecc71" /> Precio Cliente ($/m²)
+                </Text>
+                <TextInput
+                  style={[styles.input, styles.clientInput]}
+                  value={clientPrice}
+                  onChangeText={setClientPrice}
+                  placeholder="0.00"
+                  placeholderTextColor="#7f8c8d"
+                  keyboardType="decimal-pad"
+                />
+                <Text style={styles.helperText}>
+                  Calculado automáticamente o edita manualmente
+                </Text>
+              </View>
+
+              {/* Price Preview */}
+              {distributorPrice && clientPrice && (
+                <View style={styles.pricePreview}>
+                  <Text style={styles.pricePreviewTitle}>Vista Previa de Precios</Text>
+                  <View style={styles.pricePreviewRow}>
+                    <View style={styles.pricePreviewBox}>
+                      <Ionicons name="business" size={16} color="#3498db" />
+                      <Text style={styles.pricePreviewLabel}>Distribuidor</Text>
+                      <Text style={styles.pricePreviewValue}>${parseFloat(distributorPrice || '0').toFixed(2)}/m²</Text>
+                    </View>
+                    <Ionicons name="arrow-forward" size={20} color="#7f8c8d" />
+                    <View style={styles.pricePreviewBox}>
+                      <Ionicons name="person" size={16} color="#2ecc71" />
+                      <Text style={styles.pricePreviewLabel}>Cliente</Text>
+                      <Text style={styles.pricePreviewValueClient}>${parseFloat(clientPrice || '0').toFixed(2)}/m²</Text>
+                    </View>
+                  </View>
+                </View>
+              )}
 
               <TouchableOpacity 
                 style={styles.saveButton} 
@@ -347,7 +392,7 @@ export default function ProductsScreen() {
                   <>
                     <Ionicons name="checkmark-circle" size={22} color="#fff" />
                     <Text style={styles.saveButtonText}>
-                      {editingProduct ? 'Actualizar' : 'Guardar'}
+                      {editingProduct ? 'Actualizar Producto' : 'Guardar Producto'}
                     </Text>
                   </>
                 )}
