@@ -97,6 +97,8 @@ class QuoteItemCreate(BaseModel):
     unit_price: float  # price per m²
     chain_orientation: str = "Derecha"  # Izquierda or Derecha
     fascia_type: str = "Redonda"  # Redonda, Cuadrada sin forrar, Cuadrada forrada
+    fascia_color: str = "Blanca"  # Negra, Blanca, Gris, Café, Ivory
+    fascia_price: float = 0.0  # Optional fascia cost
 
 class QuoteItemResponse(BaseModel):
     product_id: str
@@ -109,6 +111,8 @@ class QuoteItemResponse(BaseModel):
     subtotal: float
     chain_orientation: str
     fascia_type: str
+    fascia_color: str
+    fascia_price: float
 
 class QuoteCreate(BaseModel):
     items: List[QuoteItemCreate]
