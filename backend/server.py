@@ -504,33 +504,39 @@ async def generate_quote_pdf(quote_id: str):
     
     # Items Table with new columns
     table_data = [
-        ['#', 'Producto', 'Color', 'Medidas', 'M²', 'Cadena', 'Fascia', 'Subtotal']
+        ['#', 'Producto', 'Color', 'Medidas', 'M²', 'Cadena', 'Fascia', 'Color F.', 'Costo F.', 'Subtotal']
     ]
     
     for idx, item in enumerate(quote_data['items'], 1):
         color = item.get('color', '-')
         chain = item.get('chain_orientation', 'Der.')[:3] + '.'
         fascia = item.get('fascia_type', 'Redonda')
+        fascia_color = item.get('fascia_color', '-')
+        fascia_price = item.get('fascia_price', 0)
         if fascia == "Cuadrada sin forrar":
-            fascia = "Cuad. s/f"
+            fascia = "C. s/f"
         elif fascia == "Cuadrada forrada":
-            fascia = "Cuad. forr."
+            fascia = "C. forr."
+        elif fascia == "Redonda":
+            fascia = "Red."
         
         table_data.append([
             str(idx),
-            item['product_name'][:20],
-            color[:15] if color else '-',
+            item['product_name'][:18],
+            color[:12] if color else '-',
             f"{item['width']:.2f}x{item['height']:.2f}",
             f"{item['square_meters']:.2f}",
             chain,
             fascia,
+            fascia_color[:6] if fascia_color else '-',
+            f"${fascia_price:,.0f}" if fascia_price > 0 else '-',
             f"${item['subtotal']:,.2f}"
         ])
     
     # Add total row
-    table_data.append(['', '', '', '', '', '', 'TOTAL:', f"${quote_data['total']:,.2f}"])
+    table_data.append(['', '', '', '', '', '', '', '', 'TOTAL:', f"${quote_data['total']:,.2f}"])
     
-    table = Table(table_data, colWidths=[0.3*inch, 1.4*inch, 0.9*inch, 0.8*inch, 0.5*inch, 0.5*inch, 0.7*inch, 0.8*inch])
+    table = Table(table_data, colWidths=[0.25*inch, 1.1*inch, 0.7*inch, 0.7*inch, 0.4*inch, 0.4*inch, 0.5*inch, 0.5*inch, 0.5*inch, 0.7*inch])
     table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498DB')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
