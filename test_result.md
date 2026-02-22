@@ -101,3 +101,194 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: "App para cotizar persianas enrollables con vista de distribuidor y cliente, inputs de ancho/alto con cálculo automático de M2, costos por producto, totales y exportación a PDF"
+
+backend:
+  - task: "GET /api/products - List all products"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Tested via curl, returns 5 sample products"
+
+  - task: "POST /api/products - Create new product"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "CRUD endpoint implemented"
+
+  - task: "PUT /api/products/{id} - Update product"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "CRUD endpoint implemented"
+
+  - task: "DELETE /api/products/{id} - Delete product"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "CRUD endpoint implemented"
+
+  - task: "POST /api/products/seed - Seed sample products"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Seeds 5 example blind products with distributor/client prices"
+
+  - task: "POST /api/quotes - Create quote with items"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Creates quote, calculates M2 and totals automatically"
+
+  - task: "GET /api/quotes - List all quotes"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Returns quotes sorted by date desc"
+
+  - task: "GET /api/quotes/{id}/pdf - Generate PDF"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Generates PDF with company info, items table, and totals. Returns as base64"
+
+frontend:
+  - task: "Quote screen with Distributor/Client toggle"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/(tabs)/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Toggle switches between distributor and client prices"
+
+  - task: "Product selection and measurements input"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/(tabs)/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Modal picker for products, width/height inputs, auto M2 calculation"
+
+  - task: "Quote items list with totals"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/(tabs)/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Shows items with M2, unit price, subtotal and grand total"
+
+  - task: "Save quote and export PDF"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/(tabs)/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Saves to backend and triggers PDF download/share"
+
+  - task: "Products management screen"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/(tabs)/products.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Lists products with edit/delete, add new product modal"
+
+  - task: "Quote history screen"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/(tabs)/history.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Lists saved quotes with PDF download and delete options"
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "GET /api/products - List all products"
+    - "POST /api/quotes - Create quote with items"
+    - "GET /api/quotes/{id}/pdf - Generate PDF"
+  stuck_tasks: []
+  test_all: true
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: "MVP implementation complete. Backend has full CRUD for products, quotes with M2 calculation, and PDF generation. Frontend has 3 tabs: Quote (with distributor/client toggle), Products (CRUD), and History. Please test all backend endpoints."
