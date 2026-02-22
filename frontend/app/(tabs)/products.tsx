@@ -45,7 +45,6 @@ export default function ProductsScreen() {
   const [description, setDescription] = useState('');
   const [distributorPrice, setDistributorPrice] = useState('');
   const [clientPrice, setClientPrice] = useState('');
-  const [marginPercent, setMarginPercent] = useState('30');
   const [colors, setColors] = useState<ProductColor[]>([]);
   const [newColorName, setNewColorName] = useState('');
   const [newColorCode, setNewColorCode] = useState('');
@@ -88,7 +87,6 @@ export default function ProductsScreen() {
     setDescription('');
     setDistributorPrice('');
     setClientPrice('');
-    setMarginPercent('30');
     setColors([]);
     setShowModal(true);
   };
@@ -100,10 +98,6 @@ export default function ProductsScreen() {
     setDistributorPrice(product.distributor_price.toString());
     setClientPrice(product.client_price.toString());
     setColors(product.colors || []);
-    if (product.distributor_price > 0) {
-      const margin = ((product.client_price - product.distributor_price) / product.distributor_price) * 100;
-      setMarginPercent(margin.toFixed(0));
-    }
     setShowModal(true);
   };
 
@@ -112,26 +106,6 @@ export default function ProductsScreen() {
     setEditingProduct(null);
     setNewColorName('');
     setNewColorCode('');
-  };
-
-  const handleDistributorPriceChange = (value: string) => {
-    setDistributorPrice(value);
-    const distPrice = parseFloat(value);
-    const margin = parseFloat(marginPercent);
-    if (!isNaN(distPrice) && !isNaN(margin) && distPrice > 0) {
-      const calculatedClientPrice = distPrice * (1 + margin / 100);
-      setClientPrice(calculatedClientPrice.toFixed(2));
-    }
-  };
-
-  const handleMarginChange = (value: string) => {
-    setMarginPercent(value);
-    const distPrice = parseFloat(distributorPrice);
-    const margin = parseFloat(value);
-    if (!isNaN(distPrice) && !isNaN(margin) && distPrice > 0) {
-      const calculatedClientPrice = distPrice * (1 + margin / 100);
-      setClientPrice(calculatedClientPrice.toFixed(2));
-    }
   };
 
   const addColor = () => {
@@ -159,8 +133,13 @@ export default function ProductsScreen() {
     const distPrice = parseFloat(distributorPrice);
     const cliPrice = parseFloat(clientPrice);
     
-    if (isNaN(distPrice) || isNaN(cliPrice) || distPrice <= 0 || cliPrice <= 0) {
-      Alert.alert('Error', 'Los precios deben ser números válidos mayores a 0');
+    if (isNaN(distPrice) || distPrice <= 0) {
+      Alert.alert('Error', 'El precio de distribuidor debe ser un número válido mayor a 0');
+      return;
+    }
+    
+    if (isNaN(cliPrice) || cliPrice <= 0) {
+      Alert.alert('Error', 'El precio de cliente debe ser un número válido mayor a 0');
       return;
     }
     
@@ -261,11 +240,7 @@ export default function ProductsScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3498db" />
         }
       >
-        {products.map((product) => {
-          const margin = product.distributor_price > 0 
-            ? ((product.client_price - product.distributor_price) / product.distributor_price * 100).toFixed(0)
-            : '0';
-          return (
+        {products.map((product) => (
           <View key={product.id} style={styles.productCard}>
             <View style={styles.productInfo}>
               <Text style={styles.productName}>{product.name}</Text>
@@ -291,13 +266,9 @@ export default function ProductsScreen() {
                   <Text style={styles.priceLabel}>Distribuidor</Text>
                   <Text style={styles.priceValue}>${product.distributor_price.toFixed(2)}/m²</Text>
                 </View>
-                <View style={styles.priceBox}>
+                <View style={styles.priceBoxClient}>
                   <Text style={styles.priceLabel}>Cliente</Text>
                   <Text style={styles.priceValueClient}>${product.client_price.toFixed(2)}/m²</Text>
-                </View>
-                <View style={styles.marginBox}>
-                  <Text style={styles.priceLabel}>Margen</Text>
-                  <Text style={styles.marginValue}>+{margin}%</Text>
                 </View>
               </View>
             </View>
@@ -316,8 +287,7 @@ export default function ProductsScreen() {
               </TouchableOpacity>
             </View>
           </View>
-          );
-        })}
+        ))}
         
         <View style={styles.bottomPadding} />
       </ScrollView>
@@ -367,44 +337,36 @@ export default function ProductsScreen() {
               {/* Prices Section */}
               <View style={styles.pricesSectionHeader}>
                 <Ionicons name="pricetags" size={20} color="#3498db" />
-                <Text style={styles.pricesSectionTitle}>Configuración de Precios</Text>
+                <Text style={styles.pricesSectionTitle}>Precios por Metro Cuadrado</Text>
               </View>
 
               <View style={styles.pricesRow}>
                 <View style={styles.priceInputContainer}>
-                  <Text style={styles.inputLabel}>Precio Distribuidor ($/m²)</Text>
+                  <Text style={styles.inputLabel}>
+                    <Ionicons name="business-outline" size={12} color="#3498db" /> Precio Distribuidor
+                  </Text>
                   <TextInput
                     style={[styles.input, styles.distributorInput]}
                     value={distributorPrice}
-                    onChangeText={handleDistributorPriceChange}
+                    onChangeText={setDistributorPrice}
                     placeholder="0.00"
                     placeholderTextColor="#7f8c8d"
                     keyboardType="decimal-pad"
                   />
                 </View>
-                <View style={styles.marginInputContainer}>
-                  <Text style={styles.inputLabel}>Margen %</Text>
+                <View style={styles.priceInputContainer}>
+                  <Text style={styles.inputLabel}>
+                    <Ionicons name="person-outline" size={12} color="#2ecc71" /> Precio Cliente
+                  </Text>
                   <TextInput
-                    style={[styles.input, styles.marginInput]}
-                    value={marginPercent}
-                    onChangeText={handleMarginChange}
-                    placeholder="30"
+                    style={[styles.input, styles.clientInput]}
+                    value={clientPrice}
+                    onChangeText={setClientPrice}
+                    placeholder="0.00"
                     placeholderTextColor="#7f8c8d"
                     keyboardType="decimal-pad"
                   />
                 </View>
-              </View>
-
-              <View style={styles.clientPriceContainer}>
-                <Text style={styles.inputLabel}>Precio Cliente ($/m²)</Text>
-                <TextInput
-                  style={[styles.input, styles.clientInput]}
-                  value={clientPrice}
-                  onChangeText={setClientPrice}
-                  placeholder="0.00"
-                  placeholderTextColor="#7f8c8d"
-                  keyboardType="decimal-pad"
-                />
               </View>
 
               {/* Colors Section */}
@@ -565,41 +527,34 @@ const styles = StyleSheet.create({
   pricesContainer: {
     flexDirection: 'row',
     marginTop: 12,
-    gap: 8,
+    gap: 10,
   },
   priceBox: {
     backgroundColor: '#0f3460',
     borderRadius: 8,
-    padding: 8,
-    minWidth: 80,
+    padding: 10,
+    flex: 1,
+  },
+  priceBoxClient: {
+    backgroundColor: '#0f3460',
+    borderRadius: 8,
+    padding: 10,
+    flex: 1,
   },
   priceLabel: {
-    fontSize: 10,
+    fontSize: 11,
     color: '#7f8c8d',
   },
   priceValue: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
     color: '#3498db',
     marginTop: 2,
   },
   priceValueClient: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
     color: '#2ecc71',
-    marginTop: 2,
-  },
-  marginBox: {
-    backgroundColor: '#f39c12',
-    borderRadius: 8,
-    padding: 8,
-    minWidth: 60,
-    alignItems: 'center',
-  },
-  marginValue: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#fff',
     marginTop: 2,
   },
   productActions: {
@@ -694,22 +649,11 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   priceInputContainer: {
-    flex: 2,
-  },
-  marginInputContainer: {
     flex: 1,
   },
   distributorInput: {
     borderWidth: 1,
     borderColor: '#3498db',
-  },
-  marginInput: {
-    borderWidth: 1,
-    borderColor: '#f39c12',
-    textAlign: 'center',
-  },
-  clientPriceContainer: {
-    marginTop: 4,
   },
   clientInput: {
     borderWidth: 1,
