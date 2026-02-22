@@ -39,6 +39,7 @@ export default function ProductsScreen() {
   const [description, setDescription] = useState('');
   const [distributorPrice, setDistributorPrice] = useState('');
   const [clientPrice, setClientPrice] = useState('');
+  const [marginPercent, setMarginPercent] = useState('30'); // Default 30% margin
 
   const fetchProducts = useCallback(async () => {
     try {
