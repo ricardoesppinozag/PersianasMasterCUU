@@ -18,12 +18,18 @@ import { Ionicons } from '@expo/vector-icons';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
+interface ProductColor {
+  name: string;
+  code?: string;
+}
+
 interface Product {
   id: string;
   name: string;
   description: string;
   distributor_price: number;
   client_price: number;
+  colors: ProductColor[];
 }
 
 export default function ProductsScreen() {
@@ -39,7 +45,10 @@ export default function ProductsScreen() {
   const [description, setDescription] = useState('');
   const [distributorPrice, setDistributorPrice] = useState('');
   const [clientPrice, setClientPrice] = useState('');
-  const [marginPercent, setMarginPercent] = useState('30'); // Default 30% margin
+  const [marginPercent, setMarginPercent] = useState('30');
+  const [colors, setColors] = useState<ProductColor[]>([]);
+  const [newColorName, setNewColorName] = useState('');
+  const [newColorCode, setNewColorCode] = useState('');
 
   const fetchProducts = useCallback(async () => {
     try {
@@ -80,6 +89,7 @@ export default function ProductsScreen() {
     setDistributorPrice('');
     setClientPrice('');
     setMarginPercent('30');
+    setColors([]);
     setShowModal(true);
   };
 
@@ -89,7 +99,7 @@ export default function ProductsScreen() {
     setDescription(product.description);
     setDistributorPrice(product.distributor_price.toString());
     setClientPrice(product.client_price.toString());
-    // Calculate current margin
+    setColors(product.colors || []);
     if (product.distributor_price > 0) {
       const margin = ((product.client_price - product.distributor_price) / product.distributor_price) * 100;
       setMarginPercent(margin.toFixed(0));
@@ -97,7 +107,13 @@ export default function ProductsScreen() {
     setShowModal(true);
   };
 
-  // Auto-calculate client price when distributor price or margin changes
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingProduct(null);
+    setNewColorName('');
+    setNewColorCode('');
+  };
+
   const handleDistributorPriceChange = (value: string) => {
     setDistributorPrice(value);
     const distPrice = parseFloat(value);
@@ -118,9 +134,20 @@ export default function ProductsScreen() {
     }
   };
 
-  const closeModal = () => {
-    setShowModal(false);
-    setEditingProduct(null);
+  const addColor = () => {
+    if (!newColorName.trim()) {
+      Alert.alert('Error', 'Ingresa el nombre del color');
+      return;
+    }
+    setColors([...colors, { name: newColorName.trim(), code: newColorCode.trim() || undefined }]);
+    setNewColorName('');
+    setNewColorCode('');
+  };
+
+  const removeColor = (index: number) => {
+    const newColors = [...colors];
+    newColors.splice(index, 1);
+    setColors(newColors);
   };
 
   const saveProduct = async () => {
@@ -145,6 +172,7 @@ export default function ProductsScreen() {
         description: description.trim(),
         distributor_price: distPrice,
         client_price: cliPrice,
+        colors: colors,
       };
       
       let response;
@@ -242,6 +270,22 @@ export default function ProductsScreen() {
             <View style={styles.productInfo}>
               <Text style={styles.productName}>{product.name}</Text>
               <Text style={styles.productDescription}>{product.description}</Text>
+              
+              {/* Colors */}
+              {product.colors && product.colors.length > 0 && (
+                <View style={styles.colorsContainer}>
+                  <Text style={styles.colorsLabel}>Colores disponibles:</Text>
+                  <View style={styles.colorsList}>
+                    {product.colors.map((color, idx) => (
+                      <View key={idx} style={styles.colorTag}>
+                        <View style={[styles.colorDot, { backgroundColor: color.code || '#808080' }]} />
+                        <Text style={styles.colorTagText}>{color.name}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+              
               <View style={styles.pricesContainer}>
                 <View style={styles.priceBox}>
                   <Text style={styles.priceLabel}>Distribuidor</Text>
@@ -320,7 +364,7 @@ export default function ProductsScreen() {
                 numberOfLines={3}
               />
 
-              {/* Prices Section Header */}
+              {/* Prices Section */}
               <View style={styles.pricesSectionHeader}>
                 <Ionicons name="pricetags" size={20} color="#3498db" />
                 <Text style={styles.pricesSectionTitle}>Configuración de Precios</Text>
@@ -328,9 +372,7 @@ export default function ProductsScreen() {
 
               <View style={styles.pricesRow}>
                 <View style={styles.priceInputContainer}>
-                  <Text style={styles.inputLabel}>
-                    <Ionicons name="business-outline" size={12} color="#3498db" /> Precio Distribuidor ($/m²)
-                  </Text>
+                  <Text style={styles.inputLabel}>Precio Distribuidor ($/m²)</Text>
                   <TextInput
                     style={[styles.input, styles.distributorInput]}
                     value={distributorPrice}
@@ -354,9 +396,7 @@ export default function ProductsScreen() {
               </View>
 
               <View style={styles.clientPriceContainer}>
-                <Text style={styles.inputLabel}>
-                  <Ionicons name="person-outline" size={12} color="#2ecc71" /> Precio Cliente ($/m²)
-                </Text>
+                <Text style={styles.inputLabel}>Precio Cliente ($/m²)</Text>
                 <TextInput
                   style={[styles.input, styles.clientInput]}
                   value={clientPrice}
@@ -365,30 +405,50 @@ export default function ProductsScreen() {
                   placeholderTextColor="#7f8c8d"
                   keyboardType="decimal-pad"
                 />
-                <Text style={styles.helperText}>
-                  Calculado automáticamente o edita manualmente
-                </Text>
               </View>
 
-              {/* Price Preview */}
-              {distributorPrice && clientPrice && (
-                <View style={styles.pricePreview}>
-                  <Text style={styles.pricePreviewTitle}>Vista Previa de Precios</Text>
-                  <View style={styles.pricePreviewRow}>
-                    <View style={styles.pricePreviewBox}>
-                      <Ionicons name="business" size={16} color="#3498db" />
-                      <Text style={styles.pricePreviewLabel}>Distribuidor</Text>
-                      <Text style={styles.pricePreviewValue}>${parseFloat(distributorPrice || '0').toFixed(2)}/m²</Text>
+              {/* Colors Section */}
+              <View style={styles.colorsSectionHeader}>
+                <Ionicons name="color-palette" size={20} color="#9b59b6" />
+                <Text style={styles.colorsSectionTitle}>Colores / Modelos</Text>
+              </View>
+
+              {/* Existing Colors */}
+              {colors.length > 0 && (
+                <View style={styles.existingColors}>
+                  {colors.map((color, index) => (
+                    <View key={index} style={styles.colorItem}>
+                      <View style={[styles.colorDotMedium, { backgroundColor: color.code || '#808080' }]} />
+                      <Text style={styles.colorItemName}>{color.name}</Text>
+                      <TouchableOpacity onPress={() => removeColor(index)}>
+                        <Ionicons name="close-circle" size={22} color="#e74c3c" />
+                      </TouchableOpacity>
                     </View>
-                    <Ionicons name="arrow-forward" size={20} color="#7f8c8d" />
-                    <View style={styles.pricePreviewBox}>
-                      <Ionicons name="person" size={16} color="#2ecc71" />
-                      <Text style={styles.pricePreviewLabel}>Cliente</Text>
-                      <Text style={styles.pricePreviewValueClient}>${parseFloat(clientPrice || '0').toFixed(2)}/m²</Text>
-                    </View>
-                  </View>
+                  ))}
                 </View>
               )}
+
+              {/* Add New Color */}
+              <View style={styles.addColorRow}>
+                <TextInput
+                  style={[styles.input, styles.colorNameInput]}
+                  value={newColorName}
+                  onChangeText={setNewColorName}
+                  placeholder="Nombre del color"
+                  placeholderTextColor="#7f8c8d"
+                />
+                <TextInput
+                  style={[styles.input, styles.colorCodeInput]}
+                  value={newColorCode}
+                  onChangeText={setNewColorCode}
+                  placeholder="#FFFFFF"
+                  placeholderTextColor="#7f8c8d"
+                  autoCapitalize="characters"
+                />
+                <TouchableOpacity style={styles.addColorButton} onPress={addColor}>
+                  <Ionicons name="add" size={24} color="#fff" />
+                </TouchableOpacity>
+              </View>
 
               <TouchableOpacity 
                 style={styles.saveButton} 
@@ -469,29 +529,62 @@ const styles = StyleSheet.create({
     marginTop: 6,
     lineHeight: 18,
   },
+  colorsContainer: {
+    marginTop: 10,
+  },
+  colorsLabel: {
+    fontSize: 11,
+    color: '#9b59b6',
+    marginBottom: 6,
+  },
+  colorsList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  colorTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0f3460',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    gap: 4,
+  },
+  colorDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#fff',
+  },
+  colorTagText: {
+    fontSize: 11,
+    color: '#fff',
+  },
   pricesContainer: {
     flexDirection: 'row',
     marginTop: 12,
-    gap: 12,
+    gap: 8,
   },
   priceBox: {
     backgroundColor: '#0f3460',
     borderRadius: 8,
-    padding: 10,
-    minWidth: 100,
+    padding: 8,
+    minWidth: 80,
   },
   priceLabel: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#7f8c8d',
   },
   priceValue: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: '#3498db',
     marginTop: 2,
   },
   priceValueClient: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: '#2ecc71',
     marginTop: 2,
@@ -499,12 +592,12 @@ const styles = StyleSheet.create({
   marginBox: {
     backgroundColor: '#f39c12',
     borderRadius: 8,
-    padding: 10,
-    minWidth: 70,
+    padding: 8,
+    minWidth: 60,
     alignItems: 'center',
   },
   marginValue: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: '#fff',
     marginTop: 2,
@@ -533,10 +626,6 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#3498db',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
     elevation: 8,
   },
   bottomPadding: {
@@ -551,7 +640,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#16213e',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: '85%',
+    maxHeight: '90%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -586,6 +675,20 @@ const styles = StyleSheet.create({
     height: 80,
     textAlignVertical: 'top',
   },
+  pricesSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#0f3460',
+  },
+  pricesSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
   pricesRow: {
     flexDirection: 'row',
     gap: 12,
@@ -612,61 +715,64 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#2ecc71',
   },
-  helperText: {
-    fontSize: 11,
-    color: '#7f8c8d',
-    marginTop: -10,
-    marginBottom: 16,
-    fontStyle: 'italic',
-  },
-  pricesSectionHeader: {
+  colorsSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    marginTop: 8,
     marginBottom: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#0f3460',
   },
-  pricesSectionTitle: {
+  colorsSectionTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
   },
-  pricePreview: {
-    backgroundColor: '#0f3460',
-    borderRadius: 12,
-    padding: 16,
+  existingColors: {
     marginBottom: 16,
   },
-  pricePreviewTitle: {
-    fontSize: 13,
-    color: '#7f8c8d',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  pricePreviewRow: {
+  colorItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-around',
+    backgroundColor: '#0f3460',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 8,
+    gap: 10,
   },
-  pricePreviewBox: {
+  colorDotMedium: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  colorItemName: {
+    flex: 1,
+    color: '#fff',
+    fontSize: 15,
+  },
+  addColorRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'flex-start',
+  },
+  colorNameInput: {
+    flex: 2,
+    marginBottom: 0,
+  },
+  colorCodeInput: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  addColorButton: {
+    backgroundColor: '#9b59b6',
+    borderRadius: 10,
+    padding: 14,
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 4,
-  },
-  pricePreviewLabel: {
-    fontSize: 12,
-    color: '#7f8c8d',
-  },
-  pricePreviewValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#3498db',
-  },
-  pricePreviewValueClient: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#2ecc71',
   },
   saveButton: {
     flexDirection: 'row',
@@ -675,7 +781,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#27ae60',
     borderRadius: 12,
     padding: 16,
-    marginTop: 8,
+    marginTop: 20,
     marginBottom: 30,
     gap: 8,
   },
