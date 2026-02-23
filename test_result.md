@@ -227,9 +227,9 @@ backend:
 
   - task: "GET /api/quotes/{id}/pdf/both - Generate dual PDFs"
     implemented: true
-    working: false
+    working: true
     file: "/app/backend/server.py"
-    stuck_count: 1
+    stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
@@ -239,6 +239,9 @@ backend:
       - working: false
         agent: "testing"
         comment: "❌ CRITICAL BUG: Endpoint responds correctly but both PDFs use the same pricing! The PDF generation code looks for unit_price_distributor/unit_price_client fields that don't exist in quotes, so it falls back to the stored unit_price for BOTH distributor and client PDFs. This defeats the purpose of dual pricing. Fix needed: PDF generation should look up the original product by product_id and use product.distributor_price/client_price for proper differential pricing."
+      - working: true
+        agent: "testing" 
+        comment: "✅ DUAL PDF PRICING FIX VERIFIED: Fixed successfully! The new generate_pdf_for_type_with_products() function correctly looks up product prices from the database. Tested with Persiana Enrollable Blackout (2.0×2.5m = 5m²): distributor PDF shows $2,250.00 (5m² × $450/m²), client PDF shows $2,925.00 (5m² × $585/m²). PDFs are properly different with $675 pricing difference. Endpoint working perfectly with correct filenames and base64 encoding."
 
 frontend:
   - task: "Quote screen with Distributor/Client toggle"
