@@ -300,6 +300,68 @@ class BackendAPITester:
             self.log_test("GET /api/quotes/{id}/pdf", False, f"Error: {str(e)}")
         return False
     
+    def test_generate_dual_pdf(self):
+        """Test GET /api/quotes/{id}/pdf/both - Generate both distributor and client PDFs"""
+        if not self.created_quote_id:
+            self.log_test("GET /api/quotes/{id}/pdf/both", False, "No quote ID available for dual PDF test")
+            return False
+        
+        try:
+            response = self.session.get(f"{self.base_url}/quotes/{self.created_quote_id}/pdf/both")
+            if response.status_code == 200:
+                pdf_data = response.json()
+                
+                # Check required fields
+                required_fields = ['distributor_pdf_base64', 'distributor_filename', 'client_pdf_base64', 'client_filename']
+                missing_fields = [field for field in required_fields if field not in pdf_data]
+                if missing_fields:
+                    self.log_test("GET /api/quotes/{id}/pdf/both", False, 
+                                f"Missing required fields: {missing_fields}", pdf_data)
+                    return False
+                
+                # Verify filename endings
+                if not pdf_data['distributor_filename'].endswith('_distribuidor.pdf'):
+                    self.log_test("GET /api/quotes/{id}/pdf/both", False, 
+                                f"Distributor filename should end with '_distribuidor.pdf', got: {pdf_data['distributor_filename']}")
+                    return False
+                
+                if not pdf_data['client_filename'].endswith('_cliente.pdf'):
+                    self.log_test("GET /api/quotes/{id}/pdf/both", False, 
+                                f"Client filename should end with '_cliente.pdf', got: {pdf_data['client_filename']}")
+                    return False
+                
+                # Verify both are valid base64
+                import base64
+                try:
+                    distributor_pdf_bytes = base64.b64decode(pdf_data['distributor_pdf_base64'])
+                    client_pdf_bytes = base64.b64decode(pdf_data['client_pdf_base64'])
+                except Exception as decode_error:
+                    self.log_test("GET /api/quotes/{id}/pdf/both", False, 
+                                f"Invalid base64 PDF data: {decode_error}")
+                    return False
+                
+                # Verify PDFs are different (different pricing)
+                if pdf_data['distributor_pdf_base64'] == pdf_data['client_pdf_base64']:
+                    self.log_test("GET /api/quotes/{id}/pdf/both", False, 
+                                "Distributor and client PDFs are identical - they should have different pricing")
+                    return False
+                
+                # Verify PDF sizes are reasonable (both should be > 1000 bytes)
+                if len(distributor_pdf_bytes) < 1000 or len(client_pdf_bytes) < 1000:
+                    self.log_test("GET /api/quotes/{id}/pdf/both", False, 
+                                f"PDF files seem too small - distributor: {len(distributor_pdf_bytes)} bytes, client: {len(client_pdf_bytes)} bytes")
+                    return False
+                
+                self.log_test("GET /api/quotes/{id}/pdf/both", True, 
+                            f"Generated dual PDFs: {pdf_data['distributor_filename']} and {pdf_data['client_filename']}")
+                return True
+                
+            else:
+                self.log_test("GET /api/quotes/{id}/pdf/both", False, f"HTTP {response.status_code}", response.text)
+        except Exception as e:
+            self.log_test("GET /api/quotes/{id}/pdf/both", False, f"Error: {str(e)}")
+        return False
+    
     def test_delete_product(self):
         """Test DELETE /api/products/{id} - Delete product"""
         if not self.created_product_id:
