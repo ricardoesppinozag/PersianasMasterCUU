@@ -57,7 +57,7 @@ interface BusinessConfig {
 }
 
 const CHAIN_OPTIONS = ['Izquierda', 'Derecha'];
-const FASCIA_OPTIONS = ['Redonda', 'Cuadrada sin forrar', 'Cuadrada forrada'];
+const FASCIA_OPTIONS = ['Sin fascia', 'Redonda', 'Cuadrada sin forrar', 'Cuadrada forrada'];
 const FASCIA_COLOR_OPTIONS = ['Negra', 'Blanca', 'Gris', 'Café', 'Ivory'];
 
 export default function QuoteScreen() {
