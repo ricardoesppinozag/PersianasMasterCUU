@@ -964,6 +964,33 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '600',
   },
+  pricesInfoContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  priceInfoBox: {
+    flex: 1,
+    backgroundColor: '#0f3460',
+    borderRadius: 10,
+    padding: 12,
+    alignItems: 'center',
+    gap: 4,
+  },
+  priceInfoLabel: {
+    color: '#7f8c8d',
+    fontSize: 12,
+  },
+  priceInfoValue: {
+    color: '#3498db',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  priceInfoValueClient: {
+    color: '#2ecc71',
+    fontSize: 16,
+    fontWeight: '700',
+  },
   inputLabel: {
     color: '#7f8c8d',
     fontSize: 13,
