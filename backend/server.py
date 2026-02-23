@@ -634,7 +634,7 @@ async def generate_quote_pdf(quote_id: str):
 
 @api_router.get("/quotes/{quote_id}/pdf/both")
 async def generate_both_pdfs(quote_id: str):
-    """Generate both distributor and client PDFs"""
+    """Generate both distributor and client PDFs with correct pricing from products"""
     try:
         quote = await db.quotes.find_one({"_id": ObjectId(quote_id)})
     except:
@@ -656,9 +656,18 @@ async def generate_both_pdfs(quote_id: str):
             "logo_base64": None
         }
     
-    # Generate both PDFs
-    distributor_pdf = await generate_pdf_for_type(quote_data, 'distributor', config)
-    client_pdf = await generate_pdf_for_type(quote_data, 'client', config)
+    # Fetch all products to get correct prices
+    products_dict = {}
+    all_products = await db.products.find().to_list(1000)
+    for prod in all_products:
+        products_dict[str(prod['_id'])] = {
+            'distributor_price': prod.get('distributor_price', 0),
+            'client_price': prod.get('client_price', 0)
+        }
+    
+    # Generate both PDFs with correct pricing from products
+    distributor_pdf = await generate_pdf_for_type_with_products(quote_data, 'distributor', config, products_dict)
+    client_pdf = await generate_pdf_for_type_with_products(quote_data, 'client', config, products_dict)
     
     return {
         "distributor_pdf_base64": base64.b64encode(distributor_pdf).decode('utf-8'),
