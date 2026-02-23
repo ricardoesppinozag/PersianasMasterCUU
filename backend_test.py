@@ -12,7 +12,7 @@ import os
 from datetime import datetime
 
 # Get the backend URL from environment
-BACKEND_URL = "https://blinds-quote.preview.emergentagent.com/api"
+BACKEND_URL = "https://roller-quote-hub.preview.emergentagent.com/api"
 
 class BackendAPITester:
     def __init__(self, base_url):
