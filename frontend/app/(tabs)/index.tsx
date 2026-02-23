@@ -1053,32 +1053,27 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '600',
   },
-  pricesInfoContainer: {
+  singlePriceContainer: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 12,
-  },
-  priceInfoBox: {
-    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#0f3460',
     borderRadius: 10,
-    padding: 12,
-    alignItems: 'center',
-    gap: 4,
+    padding: 14,
+    marginBottom: 12,
+    gap: 8,
   },
-  priceInfoLabel: {
+  singlePriceLabel: {
     color: '#7f8c8d',
-    fontSize: 12,
+    fontSize: 14,
   },
-  priceInfoValue: {
+  singlePriceValue: {
     color: '#3498db',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
   },
-  priceInfoValueClient: {
+  singlePriceValueClient: {
     color: '#2ecc71',
-    fontSize: 16,
-    fontWeight: '700',
   },
   inputLabel: {
     color: '#7f8c8d',
