@@ -48,6 +48,7 @@ interface QuoteItem {
   fascia_type: string;
   fascia_color: string;
   fascia_price: number;
+  installation_price: number;
 }
 
 interface BusinessConfig {
@@ -70,15 +71,15 @@ export default function QuoteScreen() {
   
   // Form state
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [selectedColor, setSelectedColor] = useState<string | null>(null);
+  const [colorText, setColorText] = useState(''); // Free text for color
   const [width, setWidth] = useState('');
   const [height, setHeight] = useState('');
   const [chainOrientation, setChainOrientation] = useState('Derecha');
   const [fasciaType, setFasciaType] = useState('Redonda');
   const [fasciaColor, setFasciaColor] = useState('Blanca');
   const [fasciaPrice, setFasciaPrice] = useState('');
+  const [installationPrice, setInstallationPrice] = useState('');
   const [showProductPicker, setShowProductPicker] = useState(false);
-  const [showColorPicker, setShowColorPicker] = useState(false);
   const [showChainPicker, setShowChainPicker] = useState(false);
   const [showFasciaPicker, setShowFasciaPicker] = useState(false);
   const [showFasciaColorPicker, setShowFasciaColorPicker] = useState(false);
@@ -141,6 +142,10 @@ export default function QuoteScreen() {
     return parseFloat(fasciaPrice) || 0;
   };
 
+  const getInstallationPriceValue = () => {
+    return parseFloat(installationPrice) || 0;
+  };
+
   const addItemToQuote = () => {
     if (!selectedProduct) {
       Alert.alert('Error', 'Selecciona un producto');
@@ -159,12 +164,13 @@ export default function QuoteScreen() {
     const unitPrice = getPrice(selectedProduct);
     const productSubtotal = sqm * unitPrice;
     const fasciaCost = getFasciaPriceValue();
-    const subtotal = productSubtotal + fasciaCost;
+    const installationCost = getInstallationPriceValue();
+    const subtotal = productSubtotal + fasciaCost + installationCost;
     
     const newItem: QuoteItem = {
       product_id: selectedProduct.id,
       product_name: selectedProduct.name,
-      color: selectedColor,
+      color: colorText.trim() || null,
       width: w,
       height: h,
       square_meters: sqm,
@@ -174,17 +180,19 @@ export default function QuoteScreen() {
       fascia_type: fasciaType,
       fascia_color: fasciaColor,
       fascia_price: fasciaCost,
+      installation_price: installationCost,
     };
     
     setQuoteItems([...quoteItems, newItem]);
     setSelectedProduct(null);
-    setSelectedColor(null);
+    setColorText('');
     setWidth('');
     setHeight('');
     setChainOrientation('Derecha');
     setFasciaType('Redonda');
     setFasciaColor('Blanca');
     setFasciaPrice('');
+    setInstallationPrice('');
   };
 
   const removeItem = (index: number) => {
@@ -239,6 +247,7 @@ export default function QuoteScreen() {
           fascia_type: item.fascia_type,
           fascia_color: item.fascia_color,
           fascia_price: item.fascia_price,
+          installation_price: item.installation_price,
         })),
         client_type: isDistributor ? 'distributor' : 'client',
         client_name: clientName || null,
@@ -371,29 +380,17 @@ export default function QuoteScreen() {
               <Ionicons name="chevron-down" size={20} color="#7f8c8d" />
             </TouchableOpacity>
 
-            {/* Color Picker - Only show if product has colors */}
-            {selectedProduct && selectedProduct.colors && selectedProduct.colors.length > 0 && (
+            {/* Color/Model - Free Text Input */}
+            {selectedProduct && (
               <>
-                <Text style={styles.inputLabel}>Color / Modelo</Text>
-                <TouchableOpacity
-                  style={styles.picker}
-                  onPress={() => setShowColorPicker(true)}
-                >
-                  <View style={styles.colorPickerContent}>
-                    {selectedColor && (
-                      <View 
-                        style={[
-                          styles.colorDot, 
-                          { backgroundColor: selectedProduct.colors.find(c => c.name === selectedColor)?.code || '#808080' }
-                        ]} 
-                      />
-                    )}
-                    <Text style={selectedColor ? styles.pickerText : styles.pickerPlaceholder}>
-                      {selectedColor || 'Seleccionar color...'}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-down" size={20} color="#7f8c8d" />
-                </TouchableOpacity>
+                <Text style={styles.inputLabel}>Color / Modelo / Acabado</Text>
+                <TextInput
+                  style={styles.colorInput}
+                  value={colorText}
+                  onChangeText={setColorText}
+                  placeholder="Ej: Blanco, Madera Nogal, Veteado Gris..."
+                  placeholderTextColor="#7f8c8d"
+                />
               </>
             )}
 
@@ -435,7 +432,7 @@ export default function QuoteScreen() {
               <Text style={styles.calculatedValue}>{calculateSquareMeters().toFixed(2)} m²</Text>
             </View>
 
-            {/* Chain Orientation */}
+            {/* Chain Orientation & Fascia Type */}
             <View style={styles.optionsRow}>
               <View style={styles.optionInput}>
                 <Text style={styles.inputLabel}>Cadena</Text>
@@ -463,9 +460,9 @@ export default function QuoteScreen() {
               </View>
             </View>
 
-            {/* Fascia Color & Price */}
+            {/* Fascia Color */}
             <View style={styles.optionsRow}>
-              <View style={styles.optionInput}>
+              <View style={styles.optionInputFull}>
                 <Text style={styles.inputLabel}>Color Fascia</Text>
                 <TouchableOpacity
                   style={styles.optionPicker}
@@ -475,21 +472,40 @@ export default function QuoteScreen() {
                   <Text style={styles.optionText}>{fasciaColor}</Text>
                 </TouchableOpacity>
               </View>
-              <View style={styles.optionInput}>
-                <Text style={styles.inputLabel}>Costo Fascia ($)</Text>
-                <TextInput
-                  style={styles.fasciaPriceInput}
-                  value={fasciaPrice}
-                  onChangeText={setFasciaPrice}
-                  keyboardType="decimal-pad"
-                  placeholder="0.00"
-                  placeholderTextColor="#7f8c8d"
-                />
+            </View>
+
+            {/* Costs Row - Fascia & Installation */}
+            <View style={styles.costsSection}>
+              <Text style={styles.costsSectionTitle}>Costos Adicionales (Opcionales)</Text>
+              <View style={styles.costsRow}>
+                <View style={styles.costInput}>
+                  <Text style={styles.inputLabel}>Fascia ($)</Text>
+                  <TextInput
+                    style={styles.costInputField}
+                    value={fasciaPrice}
+                    onChangeText={setFasciaPrice}
+                    keyboardType="decimal-pad"
+                    placeholder="0.00"
+                    placeholderTextColor="#7f8c8d"
+                  />
+                </View>
+                <View style={styles.costInput}>
+                  <Text style={styles.inputLabel}>Instalación ($)</Text>
+                  <TextInput
+                    style={[styles.costInputField, styles.installationInput]}
+                    value={installationPrice}
+                    onChangeText={setInstallationPrice}
+                    keyboardType="decimal-pad"
+                    placeholder="0.00"
+                    placeholderTextColor="#7f8c8d"
+                  />
+                </View>
               </View>
             </View>
 
+            {/* Subtotal Breakdown */}
             {selectedProduct && width && height && (
-              <>
+              <View style={styles.subtotalSection}>
                 <View style={styles.calculatedRow}>
                   <Text style={styles.calculatedLabel}>Producto ({calculateSquareMeters().toFixed(2)} m²):</Text>
                   <Text style={styles.calculatedValue}>
@@ -504,13 +520,21 @@ export default function QuoteScreen() {
                     </Text>
                   </View>
                 )}
+                {getInstallationPriceValue() > 0 && (
+                  <View style={styles.calculatedRow}>
+                    <Text style={styles.calculatedLabel}>Instalación:</Text>
+                    <Text style={styles.calculatedValue}>
+                      ${getInstallationPriceValue().toFixed(2)}
+                    </Text>
+                  </View>
+                )}
                 <View style={styles.calculatedRow}>
-                  <Text style={styles.calculatedLabel}>Subtotal:</Text>
+                  <Text style={styles.subtotalLabel}>SUBTOTAL:</Text>
                   <Text style={styles.calculatedValueHighlight}>
-                    ${(calculateSquareMeters() * getPrice(selectedProduct) + getFasciaPriceValue()).toFixed(2)}
+                    ${(calculateSquareMeters() * getPrice(selectedProduct) + getFasciaPriceValue() + getInstallationPriceValue()).toFixed(2)}
                   </Text>
                 </View>
-              </>
+              </View>
             )}
 
             <TouchableOpacity style={styles.addButton} onPress={addItemToQuote}>
@@ -543,8 +567,9 @@ export default function QuoteScreen() {
                       Cadena: {item.chain_orientation} | Fascia: {item.fascia_type} ({item.fascia_color})
                     </Text>
                     <Text style={styles.quoteItemPrice}>
-                      ${item.unit_price.toFixed(2)}/m² = ${(item.square_meters * item.unit_price).toFixed(2)}
-                      {item.fascia_price > 0 && ` + Fascia $${item.fascia_price.toFixed(2)}`}
+                      Producto: ${(item.square_meters * item.unit_price).toFixed(2)}
+                      {item.fascia_price > 0 && ` | Fascia: $${item.fascia_price.toFixed(2)}`}
+                      {item.installation_price > 0 && ` | Inst: $${item.installation_price.toFixed(2)}`}
                     </Text>
                     <Text style={styles.quoteItemSubtotal}>
                       Subtotal: ${item.subtotal.toFixed(2)}
@@ -645,26 +670,13 @@ export default function QuoteScreen() {
                     style={styles.productOption}
                     onPress={() => {
                       setSelectedProduct(product);
-                      setSelectedColor(null);
+                      setColorText('');
                       setShowProductPicker(false);
                     }}
                   >
                     <View style={styles.productOptionInfo}>
                       <Text style={styles.productOptionName}>{product.name}</Text>
                       <Text style={styles.productOptionDesc}>{product.description}</Text>
-                      {product.colors && product.colors.length > 0 && (
-                        <View style={styles.colorDotsRow}>
-                          {product.colors.slice(0, 5).map((color, idx) => (
-                            <View 
-                              key={idx} 
-                              style={[styles.colorDotSmall, { backgroundColor: color.code || '#808080' }]} 
-                            />
-                          ))}
-                          {product.colors.length > 5 && (
-                            <Text style={styles.moreColors}>+{product.colors.length - 5}</Text>
-                          )}
-                        </View>
-                      )}
                     </View>
                     <View style={styles.productOptionPrice}>
                       <Text style={styles.priceLabel}>
@@ -674,38 +686,6 @@ export default function QuoteScreen() {
                         ${getPrice(product).toFixed(2)}/m²
                       </Text>
                     </View>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          </View>
-        </Modal>
-
-        {/* Color Picker Modal */}
-        <Modal visible={showColorPicker} transparent animationType="slide">
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContentSmall}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Seleccionar Color</Text>
-                <TouchableOpacity onPress={() => setShowColorPicker(false)}>
-                  <Ionicons name="close" size={28} color="#fff" />
-                </TouchableOpacity>
-              </View>
-              <ScrollView style={styles.modalScroll}>
-                {selectedProduct?.colors?.map((color, idx) => (
-                  <TouchableOpacity
-                    key={idx}
-                    style={styles.colorOption}
-                    onPress={() => {
-                      setSelectedColor(color.name);
-                      setShowColorPicker(false);
-                    }}
-                  >
-                    <View style={[styles.colorDotLarge, { backgroundColor: color.code || '#808080' }]} />
-                    <Text style={styles.colorOptionText}>{color.name}</Text>
-                    {selectedColor === color.name && (
-                      <Ionicons name="checkmark-circle" size={24} color="#2ecc71" />
-                    )}
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -944,42 +924,15 @@ const styles = StyleSheet.create({
     color: '#7f8c8d',
     fontSize: 15,
   },
-  colorPickerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  colorDot: {
-    width: 20,
-    height: 20,
+  colorInput: {
+    backgroundColor: '#0f3460',
     borderRadius: 10,
+    padding: 14,
+    color: '#fff',
+    fontSize: 15,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#fff',
-  },
-  colorDotSmall: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    borderWidth: 1,
-    borderColor: '#fff',
-  },
-  colorDotLarge: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  colorDotsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 8,
-  },
-  moreColors: {
-    color: '#7f8c8d',
-    fontSize: 11,
-    marginLeft: 4,
+    borderColor: '#9b59b6',
   },
   fasciaColorDot: {
     width: 16,
@@ -1030,6 +983,9 @@ const styles = StyleSheet.create({
   optionInput: {
     flex: 1,
   },
+  optionInputFull: {
+    flex: 1,
+  },
   optionPicker: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1043,7 +999,26 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 13,
   },
-  fasciaPriceInput: {
+  costsSection: {
+    marginTop: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#0f3460',
+  },
+  costsSectionTitle: {
+    color: '#f39c12',
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 10,
+  },
+  costsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  costInput: {
+    flex: 1,
+  },
+  costInputField: {
     backgroundColor: '#0f3460',
     borderRadius: 10,
     padding: 12,
@@ -1053,16 +1028,30 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#f39c12',
   },
+  installationInput: {
+    borderColor: '#27ae60',
+  },
+  subtotalSection: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#0f3460',
+  },
   calculatedRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: 6,
     paddingHorizontal: 4,
   },
   calculatedLabel: {
     color: '#7f8c8d',
     fontSize: 14,
+  },
+  subtotalLabel: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
   },
   calculatedValue: {
     color: '#fff',
@@ -1106,7 +1095,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   quoteItemColor: {
-    color: '#3498db',
+    color: '#9b59b6',
     fontSize: 12,
     marginTop: 2,
   },
@@ -1116,13 +1105,13 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   quoteItemOptions: {
-    color: '#9b59b6',
+    color: '#3498db',
     fontSize: 11,
     marginTop: 2,
   },
   quoteItemPrice: {
     color: '#bdc3c7',
-    fontSize: 12,
+    fontSize: 11,
     marginTop: 4,
   },
   quoteItemSubtotal: {
@@ -1249,20 +1238,6 @@ const styles = StyleSheet.create({
     color: '#2ecc71',
     fontSize: 16,
     fontWeight: '700',
-  },
-  colorOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0f3460',
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 10,
-    gap: 12,
-  },
-  colorOptionText: {
-    color: '#fff',
-    fontSize: 16,
-    flex: 1,
   },
   optionsList: {
     padding: 16,
