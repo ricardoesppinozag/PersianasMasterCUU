@@ -1,0 +1,51 @@
+# ===================================
+# Docker Compose para Cotización de Persianas Enrollables
+# ===================================
+# 
+# USO:
+#   docker-compose up -d --build
+#
+# La aplicación estará disponible en http://localhost:80
+# ===================================
+
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7
+    container_name: persianas-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=persianas_quotes
+    networks:
+      - persianas-network
+
+  # Aplicación (Backend + Frontend)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: persianas-app
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    environment:
+      - MONGO_URL=mongodb://mongodb:27017
+      - DB_NAME=persianas_quotes
+    depends_on:
+      - mongodb
+    networks:
+      - persianas-network
+
+volumes:
+  mongodb_data:
+    driver: local
+
+networks:
+  persianas-network:
+    driver: bridge
