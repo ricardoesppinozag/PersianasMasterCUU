@@ -399,6 +399,7 @@ class BackendAPITester:
             self.test_create_quote,  # This depends on products existing
             self.test_get_quotes,
             self.test_generate_pdf,  # This depends on quote existing
+            self.test_generate_dual_pdf,  # NEW: Test dual PDF generation
             self.test_delete_product  # Cleanup
         ]
         
