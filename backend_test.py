@@ -362,6 +362,98 @@ class BackendAPITester:
             self.log_test("GET /api/quotes/{id}/pdf/both", False, f"Error: {str(e)}")
         return False
     
+    def test_dual_pdf_review_request(self):
+        """Test the specific dual PDF scenario from review request"""
+        # Create specific test quote as requested in review
+        test_quote_data = {
+            "items": [{
+                "product_id": "test123",
+                "product_name": "Persiana Test", 
+                "color": "Blanco",
+                "width": 1.5,
+                "height": 2.0,
+                "unit_price": 450.0,
+                "chain_orientation": "Derecha",
+                "fascia_type": "Redonda", 
+                "fascia_color": "Blanca",
+                "fascia_price": 50.0,
+                "installation_price": 100.0
+            }],
+            "client_type": "distributor",
+            "client_name": "Test Client",
+            "notes": "Test note"
+        }
+        
+        try:
+            # Step 1: Create the test quote
+            response = self.session.post(f"{self.base_url}/quotes", json=test_quote_data)
+            if response.status_code != 200:
+                self.log_test("Review Request - Dual PDF", False, 
+                            f"Failed to create test quote: HTTP {response.status_code}", response.text)
+                return False
+            
+            quote = response.json()
+            quote_id = quote['id']
+            
+            # Step 2: Call the dual PDF endpoint
+            response = self.session.get(f"{self.base_url}/quotes/{quote_id}/pdf/both")
+            if response.status_code != 200:
+                self.log_test("Review Request - Dual PDF", False, 
+                            f"Dual PDF endpoint failed: HTTP {response.status_code}", response.text)
+                return False
+            
+            pdf_data = response.json()
+            
+            # Step 3: Verify response structure
+            required_fields = ['distributor_pdf_base64', 'distributor_filename', 'client_pdf_base64', 'client_filename']
+            missing_fields = [field for field in required_fields if field not in pdf_data]
+            if missing_fields:
+                self.log_test("Review Request - Dual PDF", False, 
+                            f"Missing required fields in response: {missing_fields}", pdf_data)
+                return False
+            
+            # Step 4: Verify filename patterns
+            if not pdf_data['distributor_filename'].endswith('_distribuidor.pdf'):
+                self.log_test("Review Request - Dual PDF", False, 
+                            f"Distributor filename incorrect pattern: {pdf_data['distributor_filename']}")
+                return False
+                
+            if not pdf_data['client_filename'].endswith('_cliente.pdf'):
+                self.log_test("Review Request - Dual PDF", False, 
+                            f"Client filename incorrect pattern: {pdf_data['client_filename']}")
+                return False
+            
+            # Step 5: Verify both base64 strings are valid
+            import base64
+            try:
+                distributor_pdf_bytes = base64.b64decode(pdf_data['distributor_pdf_base64'])
+                client_pdf_bytes = base64.b64decode(pdf_data['client_pdf_base64'])
+            except Exception as decode_error:
+                self.log_test("Review Request - Dual PDF", False, 
+                            f"Invalid base64 PDF data: {decode_error}")
+                return False
+            
+            # Step 6: Verify PDFs are different (different pricing labels)
+            if pdf_data['distributor_pdf_base64'] == pdf_data['client_pdf_base64']:
+                self.log_test("Review Request - Dual PDF", False, 
+                            "Distributor and client PDFs are identical - should have different pricing labels")
+                return False
+            
+            # Step 7: Verify PDF files are valid (reasonable size)
+            if len(distributor_pdf_bytes) < 1000 or len(client_pdf_bytes) < 1000:
+                self.log_test("Review Request - Dual PDF", False, 
+                            f"PDF files too small: distributor={len(distributor_pdf_bytes)} bytes, client={len(client_pdf_bytes)} bytes")
+                return False
+            
+            self.log_test("Review Request - Dual PDF", True, 
+                        f"✅ All requirements met - Generated dual PDFs with different pricing labels. "
+                        f"Distributor: {len(distributor_pdf_bytes)} bytes, Client: {len(client_pdf_bytes)} bytes")
+            return True
+            
+        except Exception as e:
+            self.log_test("Review Request - Dual PDF", False, f"Error: {str(e)}")
+            return False
+    
     def test_delete_product(self):
         """Test DELETE /api/products/{id} - Delete product"""
         if not self.created_product_id:
