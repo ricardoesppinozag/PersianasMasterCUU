@@ -412,28 +412,8 @@ async def delete_quote(quote_id: str):
 
 # ---------- PDF GENERATION ----------
 
-@api_router.get("/quotes/{quote_id}/pdf")
-async def generate_quote_pdf(quote_id: str):
-    try:
-        quote = await db.quotes.find_one({"_id": ObjectId(quote_id)})
-    except:
-        raise HTTPException(status_code=400, detail="ID de cotización inválido")
-    
-    if not quote:
-        raise HTTPException(status_code=404, detail="Cotización no encontrada")
-    
-    quote_data = serialize_doc(quote)
-    
-    # Get business config
-    config = await db.business_config.find_one()
-    if not config:
-        config = {
-            "business_name": "Persianas Premium",
-            "phone": "+52 555 123 4567",
-            "email": "contacto@persianaspremium.mx",
-            "address": "Av. Reforma 123, Col. Centro, CDMX",
-            "logo_base64": None
-        }
+async def generate_pdf_for_type(quote_data: dict, client_type: str, config: dict) -> bytes:
+    """Generate PDF for a specific client type (distributor or client)"""
     
     # Create PDF in memory
     buffer = io.BytesIO()
@@ -488,12 +468,12 @@ async def generate_quote_pdf(quote_id: str):
     if isinstance(quote_date, str):
         quote_date = datetime.fromisoformat(quote_date.replace('Z', '+00:00'))
     
-    client_type_label = "DISTRIBUIDOR" if quote_data['client_type'] == 'distributor' else "CLIENTE"
+    client_type_label = "DISTRIBUIDOR" if client_type == 'distributor' else "CLIENTE"
     
     quote_info = f"""
     <b>Folio:</b> {quote_data['id'][:8].upper()}<br/>
     <b>Fecha:</b> {quote_date.strftime('%d/%m/%Y %H:%M')}<br/>
-    <b>Tipo de Cliente:</b> {client_type_label}
+    <b>Tipo de Cotización:</b> {client_type_label}
     """
     
     if quote_data.get('client_name'):
@@ -506,11 +486,12 @@ async def generate_quote_pdf(quote_id: str):
     elements.append(Paragraph(quote_info, info_style))
     elements.append(Spacer(1, 20))
     
-    # Items Table with new columns
+    # Items Table - recalculate with correct prices
     table_data = [
         ['#', 'Producto', 'Color', 'Medidas', 'M²', 'Cadena', 'Fascia', 'Extras', 'Subtotal']
     ]
     
+    total = 0
     for idx, item in enumerate(quote_data['items'], 1):
         color = item.get('color', '-')
         chain = item.get('chain_orientation', 'Der.')[:3] + '.'
@@ -518,6 +499,14 @@ async def generate_quote_pdf(quote_id: str):
         fascia_color = item.get('fascia_color', '-')
         fascia_price = item.get('fascia_price', 0)
         installation_price = item.get('installation_price', 0)
+        
+        # Use the correct unit price based on client_type
+        unit_price = item.get('unit_price_distributor', item.get('unit_price', 0)) if client_type == 'distributor' else item.get('unit_price_client', item.get('unit_price', 0))
+        
+        sqm = item.get('square_meters', 0)
+        product_cost = sqm * unit_price
+        subtotal = product_cost + fascia_price + installation_price
+        total += subtotal
         
         if fascia == "Cuadrada sin forrar":
             fascia = "C. s/f"
@@ -541,15 +530,15 @@ async def generate_quote_pdf(quote_id: str):
             item['product_name'][:16],
             color[:10] if color else '-',
             f"{item['width']:.2f}x{item['height']:.2f}",
-            f"{item['square_meters']:.2f}",
+            f"{sqm:.2f}",
             chain,
             fascia_info,
             extras_str,
-            f"${item['subtotal']:,.2f}"
+            f"${subtotal:,.2f}"
         ])
     
     # Add total row
-    table_data.append(['', '', '', '', '', '', '', 'TOTAL:', f"${quote_data['total']:,.2f}"])
+    table_data.append(['', '', '', '', '', '', '', 'TOTAL:', f"${total:,.2f}"])
     
     table = Table(table_data, colWidths=[0.25*inch, 1.0*inch, 0.65*inch, 0.7*inch, 0.4*inch, 0.4*inch, 0.7*inch, 0.65*inch, 0.7*inch])
     table.setStyle(TableStyle([
@@ -606,12 +595,76 @@ async def generate_quote_pdf(quote_id: str):
     pdf_data = buffer.getvalue()
     buffer.close()
     
-    # Return PDF as base64 for mobile app consumption
+    return pdf_data
+
+
+@api_router.get("/quotes/{quote_id}/pdf")
+async def generate_quote_pdf(quote_id: str):
+    """Generate single PDF based on quote's client_type"""
+    try:
+        quote = await db.quotes.find_one({"_id": ObjectId(quote_id)})
+    except:
+        raise HTTPException(status_code=400, detail="ID de cotización inválido")
+    
+    if not quote:
+        raise HTTPException(status_code=404, detail="Cotización no encontrada")
+    
+    quote_data = serialize_doc(quote)
+    
+    # Get business config
+    config = await db.business_config.find_one()
+    if not config:
+        config = {
+            "business_name": "Persianas Premium",
+            "phone": "+52 555 123 4567",
+            "email": "contacto@persianaspremium.mx",
+            "address": "Av. Reforma 123, Col. Centro, CDMX",
+            "logo_base64": None
+        }
+    
+    client_type = quote_data.get('client_type', 'client')
+    pdf_data = await generate_pdf_for_type(quote_data, client_type, config)
     pdf_base64 = base64.b64encode(pdf_data).decode('utf-8')
     
     return {
         "pdf_base64": pdf_base64,
-        "filename": f"cotizacion_{quote_data['id'][:8]}.pdf"
+        "filename": f"cotizacion_{quote_data['id'][:8]}_{client_type}.pdf"
+    }
+
+
+@api_router.get("/quotes/{quote_id}/pdf/both")
+async def generate_both_pdfs(quote_id: str):
+    """Generate both distributor and client PDFs"""
+    try:
+        quote = await db.quotes.find_one({"_id": ObjectId(quote_id)})
+    except:
+        raise HTTPException(status_code=400, detail="ID de cotización inválido")
+    
+    if not quote:
+        raise HTTPException(status_code=404, detail="Cotización no encontrada")
+    
+    quote_data = serialize_doc(quote)
+    
+    # Get business config
+    config = await db.business_config.find_one()
+    if not config:
+        config = {
+            "business_name": "Persianas Premium",
+            "phone": "+52 555 123 4567",
+            "email": "contacto@persianaspremium.mx",
+            "address": "Av. Reforma 123, Col. Centro, CDMX",
+            "logo_base64": None
+        }
+    
+    # Generate both PDFs
+    distributor_pdf = await generate_pdf_for_type(quote_data, 'distributor', config)
+    client_pdf = await generate_pdf_for_type(quote_data, 'client', config)
+    
+    return {
+        "distributor_pdf_base64": base64.b64encode(distributor_pdf).decode('utf-8'),
+        "distributor_filename": f"cotizacion_{quote_data['id'][:8]}_distribuidor.pdf",
+        "client_pdf_base64": base64.b64encode(client_pdf).decode('utf-8'),
+        "client_filename": f"cotizacion_{quote_data['id'][:8]}_cliente.pdf"
     }
 
 # Include the router in the main app
