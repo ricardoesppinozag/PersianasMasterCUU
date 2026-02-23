@@ -318,3 +318,5 @@ agent_communication:
     message: "MVP implementation complete. Backend has full CRUD for products, quotes with M2 calculation, and PDF generation. Frontend has 3 tabs: Quote (with distributor/client toggle), Products (CRUD), and History. Please test all backend endpoints."
   - agent: "testing"
     message: "Completed comprehensive backend API testing. All 9 backend endpoints are working correctly including M² calculations and PDF generation. Created backend_test.py with full test suite."
+  - agent: "main"
+    message: "Implemented dual PDF generation feature. The frontend now calls GET /api/quotes/{id}/pdf/both to generate both distributor and client PDFs in one action. A modal is shown with options to share each PDF. Also displays both prices when a product is selected. Please test the new endpoint GET /api/quotes/{id}/pdf/both."
