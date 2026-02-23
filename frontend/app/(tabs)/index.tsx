@@ -75,7 +75,7 @@ export default function QuoteScreen() {
   const [width, setWidth] = useState('');
   const [height, setHeight] = useState('');
   const [chainOrientation, setChainOrientation] = useState('Derecha');
-  const [fasciaType, setFasciaType] = useState('Redonda');
+  const [fasciaType, setFasciaType] = useState('Sin fascia');
   const [fasciaColor, setFasciaColor] = useState('Blanca');
   const [fasciaPrice, setFasciaPrice] = useState('');
   const [installationPrice, setInstallationPrice] = useState('');
