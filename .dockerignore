@@ -1,0 +1,38 @@
+# Node modules
+frontend/node_modules
+backend/__pycache__
+
+# Build outputs
+frontend/dist
+frontend/web-build
+
+# Environment files (para desarrollo)
+frontend/.env
+backend/.env
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test files
+*.test.js
+*.spec.js
+__tests__
+
+# Documentation
+*.md
+!README.md
