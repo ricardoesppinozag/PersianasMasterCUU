@@ -849,6 +849,56 @@ export default function QuoteScreen() {
             </View>
           </View>
         </Modal>
+
+        {/* PDF Export Modal - Both PDFs */}
+        <Modal visible={showPdfModal} transparent animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.pdfModalContent}>
+              <View style={styles.pdfModalHeader}>
+                <Ionicons name="checkmark-circle" size={48} color="#2ecc71" />
+                <Text style={styles.pdfModalTitle}>¡Cotización Guardada!</Text>
+                <Text style={styles.pdfModalSubtitle}>Se generaron dos versiones del PDF</Text>
+              </View>
+              
+              <View style={styles.pdfOptionsContainer}>
+                <TouchableOpacity 
+                  style={styles.pdfOption}
+                  onPress={() => sharePdf('distributor')}
+                >
+                  <View style={styles.pdfOptionIcon}>
+                    <Ionicons name="business" size={32} color="#3498db" />
+                  </View>
+                  <View style={styles.pdfOptionInfo}>
+                    <Text style={styles.pdfOptionTitle}>PDF Distribuidor</Text>
+                    <Text style={styles.pdfOptionDesc}>Precios de distribuidor</Text>
+                  </View>
+                  <Ionicons name="share-outline" size={24} color="#3498db" />
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.pdfOption}
+                  onPress={() => sharePdf('client')}
+                >
+                  <View style={[styles.pdfOptionIcon, styles.pdfOptionIconClient]}>
+                    <Ionicons name="person" size={32} color="#2ecc71" />
+                  </View>
+                  <View style={styles.pdfOptionInfo}>
+                    <Text style={styles.pdfOptionTitle}>PDF Cliente</Text>
+                    <Text style={styles.pdfOptionDesc}>Precios para cliente final</Text>
+                  </View>
+                  <Ionicons name="share-outline" size={24} color="#2ecc71" />
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity 
+                style={styles.pdfModalCloseButton}
+                onPress={closePdfModal}
+              >
+                <Text style={styles.pdfModalCloseButtonText}>Cerrar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
