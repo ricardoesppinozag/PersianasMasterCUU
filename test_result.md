@@ -324,10 +324,10 @@ metadata:
 
 test_plan:
   current_focus:
-    - "GET /api/quotes/{id}/pdf/both - Generate dual PDFs"
+    []
   stuck_tasks:
-    - "GET /api/quotes/{id}/pdf/both - Generate dual PDFs"
-  test_all: true
+    []
+  test_all: false
   test_priority: "high_first"
 
 agent_communication:
