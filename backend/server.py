@@ -508,7 +508,7 @@ async def generate_quote_pdf(quote_id: str):
     
     # Items Table with new columns
     table_data = [
-        ['#', 'Producto', 'Color', 'Medidas', 'M²', 'Cadena', 'Fascia', 'Color F.', 'Costo F.', 'Subtotal']
+        ['#', 'Producto', 'Color', 'Medidas', 'M²', 'Cadena', 'Fascia', 'Extras', 'Subtotal']
     ]
     
     for idx, item in enumerate(quote_data['items'], 1):
@@ -517,6 +517,8 @@ async def generate_quote_pdf(quote_id: str):
         fascia = item.get('fascia_type', 'Redonda')
         fascia_color = item.get('fascia_color', '-')
         fascia_price = item.get('fascia_price', 0)
+        installation_price = item.get('installation_price', 0)
+        
         if fascia == "Cuadrada sin forrar":
             fascia = "C. s/f"
         elif fascia == "Cuadrada forrada":
@@ -524,23 +526,32 @@ async def generate_quote_pdf(quote_id: str):
         elif fascia == "Redonda":
             fascia = "Red."
         
+        # Build extras string
+        extras = []
+        if fascia_price > 0:
+            extras.append(f"F:${fascia_price:,.0f}")
+        if installation_price > 0:
+            extras.append(f"I:${installation_price:,.0f}")
+        extras_str = " ".join(extras) if extras else "-"
+        
+        fascia_info = f"{fascia} ({fascia_color[:4]})" if fascia_color else fascia
+        
         table_data.append([
             str(idx),
-            item['product_name'][:18],
-            color[:12] if color else '-',
+            item['product_name'][:16],
+            color[:10] if color else '-',
             f"{item['width']:.2f}x{item['height']:.2f}",
             f"{item['square_meters']:.2f}",
             chain,
-            fascia,
-            fascia_color[:6] if fascia_color else '-',
-            f"${fascia_price:,.0f}" if fascia_price > 0 else '-',
+            fascia_info,
+            extras_str,
             f"${item['subtotal']:,.2f}"
         ])
     
     # Add total row
-    table_data.append(['', '', '', '', '', '', '', '', 'TOTAL:', f"${quote_data['total']:,.2f}"])
+    table_data.append(['', '', '', '', '', '', '', 'TOTAL:', f"${quote_data['total']:,.2f}"])
     
-    table = Table(table_data, colWidths=[0.25*inch, 1.1*inch, 0.7*inch, 0.7*inch, 0.4*inch, 0.4*inch, 0.5*inch, 0.5*inch, 0.5*inch, 0.7*inch])
+    table = Table(table_data, colWidths=[0.25*inch, 1.0*inch, 0.65*inch, 0.7*inch, 0.4*inch, 0.4*inch, 0.7*inch, 0.65*inch, 0.7*inch])
     table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498DB')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
