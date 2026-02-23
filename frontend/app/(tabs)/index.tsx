@@ -433,17 +433,18 @@ export default function QuoteScreen() {
             )}
 
             {selectedProduct && (
-              <View style={styles.pricesInfoContainer}>
-                <View style={styles.priceInfoBox}>
-                  <Ionicons name="business" size={16} color="#3498db" />
-                  <Text style={styles.priceInfoLabel}>Distribuidor</Text>
-                  <Text style={styles.priceInfoValue}>${selectedProduct.distributor_price.toFixed(2)}/m²</Text>
-                </View>
-                <View style={styles.priceInfoBox}>
-                  <Ionicons name="person" size={16} color="#2ecc71" />
-                  <Text style={styles.priceInfoLabel}>Cliente</Text>
-                  <Text style={styles.priceInfoValueClient}>${selectedProduct.client_price.toFixed(2)}/m²</Text>
-                </View>
+              <View style={styles.singlePriceContainer}>
+                <Ionicons 
+                  name={isDistributor ? "business" : "person"} 
+                  size={18} 
+                  color={isDistributor ? "#3498db" : "#2ecc71"} 
+                />
+                <Text style={styles.singlePriceLabel}>
+                  Precio {isDistributor ? 'Distribuidor' : 'Cliente'}:
+                </Text>
+                <Text style={[styles.singlePriceValue, !isDistributor && styles.singlePriceValueClient]}>
+                  ${getPrice(selectedProduct).toFixed(2)}/m²
+                </Text>
               </View>
             )}
 
