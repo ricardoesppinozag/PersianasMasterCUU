@@ -1388,4 +1388,75 @@ const styles = StyleSheet.create({
     color: '#3498db',
     fontWeight: '600',
   },
+  // PDF Modal Styles
+  pdfModalContent: {
+    backgroundColor: '#16213e',
+    borderRadius: 20,
+    margin: 20,
+    padding: 24,
+    alignItems: 'center',
+  },
+  pdfModalHeader: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  pdfModalTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#fff',
+    marginTop: 12,
+  },
+  pdfModalSubtitle: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    marginTop: 4,
+  },
+  pdfOptionsContainer: {
+    width: '100%',
+    gap: 12,
+  },
+  pdfOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0f3460',
+    borderRadius: 12,
+    padding: 16,
+    gap: 12,
+  },
+  pdfOptionIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(52, 152, 219, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pdfOptionIconClient: {
+    backgroundColor: 'rgba(46, 204, 113, 0.2)',
+  },
+  pdfOptionInfo: {
+    flex: 1,
+  },
+  pdfOptionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  pdfOptionDesc: {
+    fontSize: 12,
+    color: '#7f8c8d',
+    marginTop: 2,
+  },
+  pdfModalCloseButton: {
+    marginTop: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 40,
+    backgroundColor: '#0f3460',
+    borderRadius: 10,
+  },
+  pdfModalCloseButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
 });
