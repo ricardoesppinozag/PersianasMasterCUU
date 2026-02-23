@@ -271,25 +271,29 @@ export default function QuoteScreen() {
       
       const savedQuote = await response.json();
       
-      const pdfResponse = await fetch(`${BACKEND_URL}/api/quotes/${savedQuote.id}/pdf`);
+      // Fetch both PDFs (distributor and client)
+      const pdfResponse = await fetch(`${BACKEND_URL}/api/quotes/${savedQuote.id}/pdf/both`);
       
       if (!pdfResponse.ok) {
-        throw new Error('Error al generar el PDF');
+        throw new Error('Error al generar los PDFs');
       }
       
       const pdfData = await pdfResponse.json();
       
-      const fileUri = FileSystem.documentDirectory + pdfData.filename;
-      await FileSystem.writeAsStringAsync(fileUri, pdfData.pdf_base64, {
-        encoding: FileSystem.EncodingType.Base64,
+      // Store both PDFs for sharing
+      setDistributorPdf({
+        base64: pdfData.distributor_pdf_base64,
+        filename: pdfData.distributor_filename
+      });
+      setClientPdf({
+        base64: pdfData.client_pdf_base64,
+        filename: pdfData.client_filename
       });
       
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(fileUri);
-      } else {
-        Alert.alert('Éxito', 'Cotización guardada. El PDF se generó correctamente.');
-      }
+      // Show modal with both PDF options
+      setShowPdfModal(true);
       
+      // Clear quote after saving
       setQuoteItems([]);
       setClientName('');
       setClientPhone('');
@@ -302,6 +306,37 @@ export default function QuoteScreen() {
     } finally {
       setSavingQuote(false);
     }
+  };
+
+  const sharePdf = async (pdfType: 'distributor' | 'client') => {
+    const pdfData = pdfType === 'distributor' ? distributorPdf : clientPdf;
+    
+    if (!pdfData) {
+      Alert.alert('Error', 'No hay PDF disponible');
+      return;
+    }
+    
+    try {
+      const fileUri = FileSystem.documentDirectory + pdfData.filename;
+      await FileSystem.writeAsStringAsync(fileUri, pdfData.base64, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(fileUri);
+      } else {
+        Alert.alert('Éxito', 'PDF generado correctamente.');
+      }
+    } catch (error) {
+      console.error('Error sharing PDF:', error);
+      Alert.alert('Error', 'No se pudo compartir el PDF');
+    }
+  };
+
+  const closePdfModal = () => {
+    setShowPdfModal(false);
+    setDistributorPdf(null);
+    setClientPdf(null);
   };
 
   if (loading) {
