@@ -321,10 +321,9 @@ metadata:
 
 test_plan:
   current_focus:
-    - "GET /api/products - List all products"
-    - "POST /api/quotes - Create quote with items"
-    - "GET /api/quotes/{id}/pdf - Generate PDF"
-  stuck_tasks: []
+    - "GET /api/quotes/{id}/pdf/both - Generate dual PDFs"
+  stuck_tasks:
+    - "GET /api/quotes/{id}/pdf/both - Generate dual PDFs"
   test_all: true
   test_priority: "high_first"
 
@@ -335,3 +334,5 @@ agent_communication:
     message: "Completed comprehensive backend API testing. All 9 backend endpoints are working correctly including M² calculations and PDF generation. Created backend_test.py with full test suite."
   - agent: "main"
     message: "Implemented dual PDF generation feature. The frontend now calls GET /api/quotes/{id}/pdf/both to generate both distributor and client PDFs in one action. A modal is shown with options to share each PDF. Also displays both prices when a product is selected. Please test the new endpoint GET /api/quotes/{id}/pdf/both."
+  - agent: "testing"
+    message: "CRITICAL ISSUE FOUND: The new GET /api/quotes/{id}/pdf/both endpoint has a serious bug. While the endpoint responds correctly and returns two PDFs with different filenames, both PDFs contain THE SAME PRICING because the PDF generation code doesn't properly implement differential pricing. The code looks for unit_price_distributor/unit_price_client fields that don't exist in stored quotes, so it defaults to using the stored unit_price for both PDFs. This completely defeats the purpose of dual pricing. The fix requires modifying the PDF generation function to look up the original product by product_id and use the product's distributor_price/client_price fields."
