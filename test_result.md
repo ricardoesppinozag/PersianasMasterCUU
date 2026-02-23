@@ -225,6 +225,21 @@ backend:
         agent: "testing"
         comment: "✅ PASS: Generated valid PDF as base64 string with correct filename format"
 
+  - task: "GET /api/quotes/{id}/pdf/both - Generate dual PDFs"
+    implemented: true
+    working: false
+    file: "/app/backend/server.py"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented dual PDF generation endpoint that returns both distributor and client PDFs with different pricing labels"
+      - working: false
+        agent: "testing"
+        comment: "❌ CRITICAL BUG: Endpoint responds correctly but both PDFs use the same pricing! The PDF generation code looks for unit_price_distributor/unit_price_client fields that don't exist in quotes, so it falls back to the stored unit_price for BOTH distributor and client PDFs. This defeats the purpose of dual pricing. Fix needed: PDF generation should look up the original product by product_id and use product.distributor_price/client_price for proper differential pricing."
+
 frontend:
   - task: "Quote screen with Distributor/Client toggle"
     implemented: true
