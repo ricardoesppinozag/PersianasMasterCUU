@@ -91,7 +91,7 @@ class BusinessConfig(BusinessConfigBase):
 class QuoteItemCreate(BaseModel):
     product_id: str
     product_name: str
-    color: Optional[str] = None  # Selected color
+    color: Optional[str] = None  # Selected color (free text)
     width: float  # in meters
     height: float  # in meters
     unit_price: float  # price per m²
@@ -99,6 +99,7 @@ class QuoteItemCreate(BaseModel):
     fascia_type: str = "Redonda"  # Redonda, Cuadrada sin forrar, Cuadrada forrada
     fascia_color: str = "Blanca"  # Negra, Blanca, Gris, Café, Ivory
     fascia_price: float = 0.0  # Optional fascia cost
+    installation_price: float = 0.0  # Optional installation cost
 
 class QuoteItemResponse(BaseModel):
     product_id: str
@@ -113,6 +114,7 @@ class QuoteItemResponse(BaseModel):
     fascia_type: str = "Redonda"
     fascia_color: str = "Blanca"
     fascia_price: float = 0.0
+    installation_price: float = 0.0
 
 class QuoteCreate(BaseModel):
     items: List[QuoteItemCreate]
