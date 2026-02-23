@@ -83,6 +83,9 @@ export default function QuoteScreen() {
   const [showChainPicker, setShowChainPicker] = useState(false);
   const [showFasciaPicker, setShowFasciaPicker] = useState(false);
   const [showFasciaColorPicker, setShowFasciaColorPicker] = useState(false);
+  const [showPdfModal, setShowPdfModal] = useState(false);
+  const [distributorPdf, setDistributorPdf] = useState<{base64: string, filename: string} | null>(null);
+  const [clientPdf, setClientPdf] = useState<{base64: string, filename: string} | null>(null);
   
   // Client info
   const [clientName, setClientName] = useState('');
