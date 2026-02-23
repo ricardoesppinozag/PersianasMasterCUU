@@ -598,6 +598,198 @@ async def generate_pdf_for_type(quote_data: dict, client_type: str, config: dict
     return pdf_data
 
 
+async def generate_pdf_for_type_with_products(quote_data: dict, client_type: str, config: dict, products_dict: dict) -> bytes:
+    """Generate PDF for a specific client type using correct product prices"""
+    
+    # Create PDF in memory
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch)
+    
+    styles = getSampleStyleSheet()
+    
+    # Custom styles
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        alignment=TA_CENTER,
+        spaceAfter=12,
+        textColor=colors.HexColor('#2C3E50')
+    )
+    
+    subtitle_style = ParagraphStyle(
+        'CustomSubtitle',
+        parent=styles['Normal'],
+        fontSize=12,
+        alignment=TA_CENTER,
+        spaceAfter=20,
+        textColor=colors.HexColor('#7F8C8D')
+    )
+    
+    info_style = ParagraphStyle(
+        'InfoStyle',
+        parent=styles['Normal'],
+        fontSize=10,
+        alignment=TA_LEFT,
+        spaceAfter=6
+    )
+    
+    elements = []
+    
+    # Company Header with custom name
+    business_name = config.get('business_name', 'Persianas Premium')
+    elements.append(Paragraph(business_name.upper(), title_style))
+    elements.append(Paragraph("Cotización de Persianas Enrollables", subtitle_style))
+    
+    # Company info
+    company_info = f"""
+    <b>Teléfono:</b> {config.get('phone', '+52 555 123 4567')} | <b>Email:</b> {config.get('email', 'contacto@persianaspremium.mx')}<br/>
+    <b>Dirección:</b> {config.get('address', 'Av. Reforma 123, Col. Centro, CDMX')}
+    """
+    elements.append(Paragraph(company_info, info_style))
+    elements.append(Spacer(1, 20))
+    
+    # Quote details
+    quote_date = quote_data.get('created_at', datetime.utcnow())
+    if isinstance(quote_date, str):
+        quote_date = datetime.fromisoformat(quote_date.replace('Z', '+00:00'))
+    
+    client_type_label = "DISTRIBUIDOR" if client_type == 'distributor' else "CLIENTE"
+    
+    quote_info = f"""
+    <b>Folio:</b> {quote_data['id'][:8].upper()}<br/>
+    <b>Fecha:</b> {quote_date.strftime('%d/%m/%Y %H:%M')}<br/>
+    <b>Tipo de Cotización:</b> {client_type_label}
+    """
+    
+    if quote_data.get('client_name'):
+        quote_info += f"<br/><b>Cliente:</b> {quote_data['client_name']}"
+    if quote_data.get('client_phone'):
+        quote_info += f"<br/><b>Teléfono:</b> {quote_data['client_phone']}"
+    if quote_data.get('client_email'):
+        quote_info += f"<br/><b>Email:</b> {quote_data['client_email']}"
+    
+    elements.append(Paragraph(quote_info, info_style))
+    elements.append(Spacer(1, 20))
+    
+    # Items Table - use correct product prices based on client_type
+    table_data = [
+        ['#', 'Producto', 'Color', 'Medidas', 'M²', 'Cadena', 'Fascia', 'Extras', 'Subtotal']
+    ]
+    
+    total = 0
+    for idx, item in enumerate(quote_data['items'], 1):
+        color = item.get('color', '-')
+        chain = item.get('chain_orientation', 'Der.')[:3] + '.'
+        fascia = item.get('fascia_type', 'Redonda')
+        fascia_color = item.get('fascia_color', '-')
+        fascia_price = item.get('fascia_price', 0)
+        installation_price = item.get('installation_price', 0)
+        
+        # Get correct unit price from products_dict based on client_type
+        product_id = item.get('product_id', '')
+        product_prices = products_dict.get(product_id, {})
+        
+        if client_type == 'distributor':
+            unit_price = product_prices.get('distributor_price', item.get('unit_price', 0))
+        else:
+            unit_price = product_prices.get('client_price', item.get('unit_price', 0))
+        
+        sqm = item.get('square_meters', 0)
+        product_cost = sqm * unit_price
+        subtotal = product_cost + fascia_price + installation_price
+        total += subtotal
+        
+        if fascia == "Cuadrada sin forrar":
+            fascia = "C. s/f"
+        elif fascia == "Cuadrada forrada":
+            fascia = "C. forr."
+        elif fascia == "Redonda":
+            fascia = "Red."
+        
+        # Build extras string
+        extras = []
+        if fascia_price > 0:
+            extras.append(f"F:${fascia_price:,.0f}")
+        if installation_price > 0:
+            extras.append(f"I:${installation_price:,.0f}")
+        extras_str = " ".join(extras) if extras else "-"
+        
+        fascia_info = f"{fascia} ({fascia_color[:4]})" if fascia_color else fascia
+        
+        table_data.append([
+            str(idx),
+            item['product_name'][:16],
+            color[:10] if color else '-',
+            f"{item['width']:.2f}x{item['height']:.2f}",
+            f"{sqm:.2f}",
+            chain,
+            fascia_info,
+            extras_str,
+            f"${subtotal:,.2f}"
+        ])
+    
+    # Add total row
+    table_data.append(['', '', '', '', '', '', '', 'TOTAL:', f"${total:,.2f}"])
+    
+    table = Table(table_data, colWidths=[0.25*inch, 1.0*inch, 0.65*inch, 0.7*inch, 0.4*inch, 0.4*inch, 0.7*inch, 0.65*inch, 0.7*inch])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498DB')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+        ('BACKGROUND', (0, 1), (-1, -2), colors.HexColor('#ECF0F1')),
+        ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor('#2C3E50')),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), 8),
+        ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+        ('ALIGN', (1, 1), (1, -1), 'LEFT'),
+        ('GRID', (0, 0), (-1, -2), 1, colors.HexColor('#BDC3C7')),
+        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#2C3E50')),
+        ('TEXTCOLOR', (0, -1), (-1, -1), colors.whitesmoke),
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, -1), (-1, -1), 10),
+        ('TOPPADDING', (0, -1), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, -1), (-1, -1), 10),
+    ]))
+    
+    elements.append(table)
+    elements.append(Spacer(1, 20))
+    
+    # Notes
+    if quote_data.get('notes'):
+        notes_style = ParagraphStyle(
+            'NotesStyle',
+            parent=styles['Normal'],
+            fontSize=10,
+            textColor=colors.HexColor('#7F8C8D')
+        )
+        elements.append(Paragraph(f"<b>Notas:</b> {quote_data['notes']}", notes_style))
+        elements.append(Spacer(1, 20))
+    
+    # Footer
+    footer_style = ParagraphStyle(
+        'FooterStyle',
+        parent=styles['Normal'],
+        fontSize=9,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor('#95A5A6')
+    )
+    elements.append(Spacer(1, 30))
+    elements.append(Paragraph("Esta cotización tiene una vigencia de 15 días.", footer_style))
+    elements.append(Paragraph("Precios sujetos a cambio sin previo aviso.", footer_style))
+    elements.append(Paragraph("¡Gracias por su preferencia!", footer_style))
+    
+    doc.build(elements)
+    
+    pdf_data = buffer.getvalue()
+    buffer.close()
+    
+    return pdf_data
+
+
 @api_router.get("/quotes/{quote_id}/pdf")
 async def generate_quote_pdf(quote_id: str):
     """Generate single PDF based on quote's client_type"""
